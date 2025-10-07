@@ -40,56 +40,51 @@ class TxtWriter:
 
     def _write_header(self):
         """
-        Write file header with metadata and parser information.
+        Write file header with metadata and parser information, matching example.txt style.
         """
-        self.file_handle.write("="*80 + "\n")
-        self.file_handle.write("SCAT Enhanced QMDL Analysis Report\n")
-        self.file_handle.write("="*80 + "\n")
-        self.file_handle.write(f"Generated: {datetime.datetime.now().isoformat()}\n")
-        self.file_handle.write(f"Parser: SCAT Enhanced JSON/TXT Extractor\n")
-        self.file_handle.write("="*80 + "\n\n")
+        self.file_handle.write("%MOBILE PARSED MESSAGE FILE\n")
+        self.file_handle.write("%QCAT VERSION   : QCAT 07.01.250 patch 03\n")
+        self.file_handle.write("%SILK VERSION   : SILK_9.83\n")
+        self.file_handle.write(f"%LOG FILE NAME  : {os.path.basename(self.txt_filename)}\n\n")
+        self.file_handle.write("%Confidential - Qualcomm Technologies, Inc.and / or its affiliated companies - May Contain Trade Secrets\n")
 
     def set_input_filename(self, filename):
         """
         Set the input filename for metadata and record its size if available.
         """
-        self.file_handle.write(f"Input File: {filename}\n")
+        self.file_handle.write(f"%LOG FILE NAME  : {filename}\n")
         if os.path.exists(filename):
             size = os.path.getsize(filename)
-            self.file_handle.write(f"File Size: {size:,} bytes ({size/1024/1024:.2f} MB)\n")
+            self.file_handle.write(f"%LOG FILE SIZE  : {size:,} bytes ({size/1024/1024:.2f} MB)\n")
         self.file_handle.write("\n")
 
     def write_cp(self, sock_content, radio_id, ts):
         """
-        Write control plane data to the TXT file.
-        Increments message counters and writes message details.
+        Write control plane data to the TXT file with improved section header and indentation.
         """
         self.stats['total_messages'] += 1
-        timestamp_str = ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts)
-        self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - Control Plane Message\n")
-        self.file_handle.write(f"  Length: {len(sock_content)} bytes\n")
-        self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n\n")
+        timestamp_str = ts.strftime('%Y %b %d %H:%M:%S.%f')[:-3] if isinstance(ts, datetime.datetime) else str(ts)
+        self.file_handle.write(f"\n{'='*80}\n[CONTROL PLANE MESSAGE] Radio {radio_id} | {timestamp_str}\n{'='*80}\n")
+        self.file_handle.write(f"  Length: {len(sock_content)}\n")
+        self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n")
 
     def write_up(self, sock_content, radio_id, ts):
         """
-        Write user plane data to the TXT file.
-        Increments message counters and writes message details.
+        Write user plane data to the TXT file with improved section header and indentation.
         """
         self.stats['total_messages'] += 1
-        timestamp_str = ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts)
-        self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - User Plane Message\n")
-        self.file_handle.write(f"  Length: {len(sock_content)} bytes\n")
-        self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n\n")
+        timestamp_str = ts.strftime('%Y %b %d %H:%M:%S.%f')[:-3] if isinstance(ts, datetime.datetime) else str(ts)
+        self.file_handle.write(f"\n{'='*80}\n[USER PLANE MESSAGE] Radio {radio_id} | {timestamp_str}\n{'='*80}\n")
+        self.file_handle.write(f"  Length: {len(sock_content)}\n")
+        self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n")
 
     def write_parsed_data(self, parsed_result, radio_id=0, ts=None):
-        """Write structured parsed data in human-readable format"""
+        """Write structured parsed data in human-readable format matching example.txt"""
         if ts is None:
             ts = datetime.datetime.now()
-            
-        timestamp_str = ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts)
+        timestamp_str = ts.strftime('%Y %b %d %H:%M:%S.%f')[:-3] if isinstance(ts, datetime.datetime) else str(ts)
         self.stats['cellular_messages'] += 1
-        
-        # Helper to process dict or list
+
         def process_item(item, write_func):
             if isinstance(item, list):
                 for entry in item:
@@ -185,80 +180,45 @@ class TxtWriter:
         self.file_handle.write("-" * 60 + "\n\n")
 
     def _write_cell_info(self, cell_info, timestamp_str, radio_id):
-        """Write detailed cell information"""
-        self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - CELL INFORMATION\n")
-        self.file_handle.write("+" + "-" * 78 + "+\n")
-        
+        """Write detailed cell information with improved grouping and indentation"""
+        self.file_handle.write(f"\n{'-'*60}\n[CELL INFORMATION] Radio {radio_id} | {timestamp_str}\n{'-'*60}\n")
         if 'pci' in cell_info:
-            self.file_handle.write(f"| Physical Cell ID (PCI): {cell_info['pci']:<50} |\n")
+            self.file_handle.write(f"  Physical Cell ID (PCI): {cell_info['pci']}\n")
             self.stats['cells_seen'].add(cell_info['pci'])
-            
         if 'earfcn_dl' in cell_info and 'earfcn_ul' in cell_info:
-            self.file_handle.write(f"| EARFCN (DL/UL): {cell_info['earfcn_dl']}/{cell_info['earfcn_ul']:<44} |\n")
-            
+            self.file_handle.write(f"  EARFCN (DL/UL): {cell_info['earfcn_dl']}/{cell_info['earfcn_ul']}\n")
         if 'band' in cell_info:
-            self.file_handle.write(f"| Band: {cell_info['band']:<68} |\n")
+            self.file_handle.write(f"  Band: {cell_info['band']}\n")
             self.stats['bands_seen'].add(cell_info['band'])
             self.stats['technologies'].add('LTE')
-            
         if 'bandwidth_dl_mhz' in cell_info and 'bandwidth_ul_mhz' in cell_info:
-            bw_text = f"{cell_info['bandwidth_dl_mhz']}/{cell_info['bandwidth_ul_mhz']} MHz"
-            padding = ' ' * (42 - len(bw_text))
-            self.file_handle.write(f"| Bandwidth (DL/UL): {bw_text}{padding} |\n")
-            
+            self.file_handle.write(f"  Bandwidth (DL/UL): {cell_info['bandwidth_dl_mhz']}/{cell_info['bandwidth_ul_mhz']} MHz\n")
         if 'mcc' in cell_info and 'mnc' in cell_info:
-            self.file_handle.write(f"| MCC/MNC: {cell_info['mcc']}/{cell_info['mnc']:<57} |\n")
-            
+            self.file_handle.write(f"  MCC/MNC: {cell_info['mcc']}/{cell_info['mnc']}\n")
         if 'tac' in cell_info:
-            self.file_handle.write(f"| Tracking Area Code (TAC): {cell_info['tac']:<46} |\n")
-            
+            self.file_handle.write(f"  Tracking Area Code (TAC): {cell_info['tac']}\n")
         if 'cell_id' in cell_info:
-            self.file_handle.write(f"| Cell ID: {cell_info['cell_id']:<63} |\n")
-            
-        self.file_handle.write("+" + "-" * 78 + "+\n\n")
+            self.file_handle.write(f"  Cell ID: {cell_info['cell_id']}\n")
 
     def _write_measurement(self, measurement, timestamp_str, radio_id):
-        """Write measurement data"""
-        self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - MEASUREMENT\n")
-        self.file_handle.write("+" + "-" * 78 + "+\n")
-        
+        """Write measurement data with improved tabular formatting"""
+        self.file_handle.write(f"\n{'-'*60}\n[MEASUREMENT] Radio {radio_id} | {timestamp_str}\n{'-'*60}\n")
         meas_type = measurement.get('type', 'unknown')
-        self.file_handle.write(f"| Type: {meas_type.upper():<66} |\n")
-        
+        self.file_handle.write(f"  Type: {meas_type.upper()}\n")
         if 'rsrp_dbm' in measurement:
-            rsrp_text = f"{measurement['rsrp_dbm']} dBm"
-            padding = ' ' * (59 - len(rsrp_text))
-            self.file_handle.write(f"| RSRP: {rsrp_text}{padding} |\n")
-            
+            self.file_handle.write(f"    RSRP: {measurement['rsrp_dbm']} dBm\n")
         if 'rsrq_db' in measurement:
-            rsrq_text = f"{measurement['rsrq_db']} dB"
-            padding = ' ' * (60 - len(rsrq_text))
-            self.file_handle.write(f"| RSRQ: {rsrq_text}{padding} |\n")
-            
+            self.file_handle.write(f"    RSRQ: {measurement['rsrq_db']} dB\n")
         if 'sinr_db' in measurement:
-            sinr_text = f"{measurement['sinr_db']} dB"
-            padding = ' ' * (60 - len(sinr_text))
-            self.file_handle.write(f"| SINR: {sinr_text}{padding} |\n")
-            
+            self.file_handle.write(f"    SINR: {measurement['sinr_db']} dB\n")
         if 'rscp_dbm' in measurement:
-            rscp_text = f"{measurement['rscp_dbm']} dBm"
-            padding = ' ' * (59 - len(rscp_text))
-            self.file_handle.write(f"| RSCP: {rscp_text}{padding} |\n")
-            
+            self.file_handle.write(f"    RSCP: {measurement['rscp_dbm']} dBm\n")
         if 'ecio_db' in measurement:
-            ecio_text = f"{measurement['ecio_db']} dB"
-            padding = ' ' * (58 - len(ecio_text))
-            self.file_handle.write(f"| Ec/Io: {ecio_text}{padding} |\n")
-            
+            self.file_handle.write(f"    Ec/Io: {measurement['ecio_db']} dB\n")
         if 'rssi_dbm' in measurement:
-            rssi_text = f"{measurement['rssi_dbm']} dBm"
-            padding = ' ' * (59 - len(rssi_text))
-            self.file_handle.write(f"| RSSI: {rssi_text}{padding} |\n")
-            
+            self.file_handle.write(f"    RSSI: {measurement['rssi_dbm']} dBm\n")
         if 'pci' in measurement:
-            self.file_handle.write(f"| PCI: {measurement['pci']:<67} |\n")
-            
-        self.file_handle.write("+" + "-" * 78 + "+\n\n")
+            self.file_handle.write(f"    PCI: {measurement['pci']}\n")
 
     def _write_rrc_message(self, rrc_msg, timestamp_str, radio_id):
         """Write RRC message information"""
