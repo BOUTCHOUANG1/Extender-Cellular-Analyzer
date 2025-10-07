@@ -1,0 +1,19 @@
+# Ignore test/example log files and outputs
+*.qmdl2
+*.qmdl
+*_output.json
+*_output.txt
+*_output.pcap
+
+# Python cache and environment
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Editor/OS files
+.DS_Store
+*.swp
+
+# Ignore intermediate files
+*.log
