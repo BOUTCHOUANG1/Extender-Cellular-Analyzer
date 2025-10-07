@@ -1,17 +1,32 @@
+
 #!/usr/bin/env python3
 # coding: utf8
 # SPDX-License-Identifier: GPL-2.0-or-later
+"""
+TxtWriter Module
+
+Provides a class for writing parsed cellular log data to human-readable TXT format.
+Tracks statistics and writes detailed message information for analysis and reporting.
+Used by the main parser and batch wrapper to output readable results.
+"""
 
 import datetime
 import os
 from pathlib import Path
 import binascii
 
+
 class TxtWriter:
+    """
+    Handles writing parsed cellular log data to a human-readable TXT file.
+    Tracks statistics and writes detailed message information for analysis and reporting.
+    """
     def __init__(self, txt_filename):
+        """
+        Initialize TxtWriter with the output filename and default statistics.
+        """
         self.txt_filename = txt_filename
         self.file_handle = open(txt_filename, 'w', encoding='utf-8')
-        
         # Statistics tracking
         self.stats = {
             'total_messages': 0,
@@ -20,12 +35,13 @@ class TxtWriter:
             'bands_seen': set(),
             'technologies': set()
         }
-        
         # Write header
         self._write_header()
-        
+
     def _write_header(self):
-        """Write file header with metadata"""
+        """
+        Write file header with metadata and parser information.
+        """
         self.file_handle.write("="*80 + "\n")
         self.file_handle.write("SCAT Enhanced QMDL Analysis Report\n")
         self.file_handle.write("="*80 + "\n")
@@ -34,7 +50,9 @@ class TxtWriter:
         self.file_handle.write("="*80 + "\n\n")
 
     def set_input_filename(self, filename):
-        """Set the input filename for metadata"""
+        """
+        Set the input filename for metadata and record its size if available.
+        """
         self.file_handle.write(f"Input File: {filename}\n")
         if os.path.exists(filename):
             size = os.path.getsize(filename)
@@ -42,19 +60,23 @@ class TxtWriter:
         self.file_handle.write("\n")
 
     def write_cp(self, sock_content, radio_id, ts):
-        """Write control plane data"""
+        """
+        Write control plane data to the TXT file.
+        Increments message counters and writes message details.
+        """
         self.stats['total_messages'] += 1
         timestamp_str = ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts)
-        
         self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - Control Plane Message\n")
         self.file_handle.write(f"  Length: {len(sock_content)} bytes\n")
         self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n\n")
 
     def write_up(self, sock_content, radio_id, ts):
-        """Write user plane data"""
+        """
+        Write user plane data to the TXT file.
+        Increments message counters and writes message details.
+        """
         self.stats['total_messages'] += 1
         timestamp_str = ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts)
-        
         self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - User Plane Message\n")
         self.file_handle.write(f"  Length: {len(sock_content)} bytes\n")
         self.file_handle.write(f"  Data: {binascii.hexlify(sock_content).decode('ascii')}\n\n")

@@ -1,6 +1,14 @@
+
 #!/usr/bin/env python3
 # coding: utf8
 # SPDX-License-Identifier: GPL-2.0-or-later
+"""
+JsonWriter Module
+
+Provides a class for writing parsed cellular log data to JSON format.
+Tracks metadata, summary statistics, and detailed message lists for analysis.
+Used by the main parser and batch wrapper to output structured results.
+"""
 
 import json
 import datetime
@@ -8,11 +16,23 @@ import os
 from pathlib import Path
 import binascii
 
+
 class JsonWriter:
+    """
+    Handles writing parsed cellular log data to a structured JSON file.
+    Tracks metadata, summary statistics, and detailed message lists for analysis.
+    """
     def write_stdout_data(self, stdout_text, radio_id=0, ts=None):
-        """Stub method to prevent AttributeError during parsing."""
+        """
+        Stub method to prevent AttributeError during parsing.
+        Used for compatibility with other writer interfaces.
+        """
         pass
+
     def __init__(self, json_filename):
+        """
+        Initialize the JsonWriter with the output filename and default data structure.
+        """
         self.json_filename = json_filename
         self.data = {
             "file_info": {
@@ -40,20 +60,23 @@ class JsonWriter:
             "ca_combos": [],
             "raw_messages": []
         }
-        
         # Track unique cells and their information
         self.cells_seen = {}
-        
+
     def set_input_filename(self, filename):
-        """Set the input filename for metadata"""
+        """
+        Set the input filename for metadata and record its size if available.
+        """
         self.data["file_info"]["filename"] = filename
         if os.path.exists(filename):
             self.data["file_info"]["size_bytes"] = os.path.getsize(filename)
 
     def write_cp(self, sock_content, radio_id, ts):
-        """Write control plane data"""
+        """
+        Write control plane data to the JSON structure.
+        Increments message counters and stores raw message for debugging/completeness.
+        """
         self._increment_counter('total_messages')
-        
         # Store raw message for debugging/completeness
         raw_msg = {
             "timestamp": ts.isoformat() if isinstance(ts, datetime.datetime) else str(ts),

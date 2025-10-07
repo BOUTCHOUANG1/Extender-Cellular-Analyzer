@@ -1,6 +1,14 @@
+
 #!/usr/bin/env python3
 # coding: utf8
 # SPDX-License-Identifier: GPL-2.0-or-later
+"""
+QualcommParser Module
+
+Provides the main parser class for Qualcomm QMDL diagnostic logs.
+Handles parsing of GSM, UMTS, LTE, and NR logs, extracting cellular events, measurements, and protocol messages.
+Used by the main entry point and batch wrapper for offline analysis.
+"""
 
 # Part of the source code:
 # (C) 2013-2016 by Harald Welte <laforge@gnumonks.org>
@@ -44,7 +52,12 @@ elif bitstring_ver >= version.parse('3.1.7'):
 else:
     raise Exception("SCAT requires bitstring>=3.1.7, recommends bitstring>=4.0.0")
 
+
 class QualcommParser:
+    """
+    Main parser class for Qualcomm QMDL diagnostic logs.
+    Handles parsing of GSM, UMTS, LTE, and NR logs, extracting cellular events, measurements, and protocol messages.
+    """
     def __init__(self):
         self.gsm_last_cell_id = [0, 0]
         self.gsm_last_arfcn = [0, 0]

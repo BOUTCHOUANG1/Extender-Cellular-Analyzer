@@ -1,7 +1,17 @@
+
 #!/usr/bin/env python3
 """
 Enhanced QMDL Parser Script
-Parses QMDL files and extracts maximum information to JSON and TXT formats
+
+This script provides a batch/automated interface for parsing QMDL files and extracting
+maximum information to JSON, TXT, and optionally PCAP formats. It is designed for
+automated analysis and integration with other tools or workflows.
+
+Key functions:
+- Validates input QMDL file
+- Sets output file prefix and options
+- Imports and runs the appropriate parser and output writers
+- Handles command-line options for output formats and debug mode
 """
 
 import sys
@@ -12,7 +22,12 @@ from pathlib import Path
 # Add src to path so we can import scat modules
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 
+
 def main():
+    """
+    Main function for the Enhanced QMDL Parser.
+    Handles argument parsing, input validation, output file setup, and runs the parser and writers.
+    """
     parser = argparse.ArgumentParser(description='Enhanced QMDL Parser - Extract maximum information from QMDL files')
     parser.add_argument('qmdl_file', help='Path to the QMDL file to parse')
     parser.add_argument('--output-prefix', help='Output file prefix (default: same as input file)', type=str)
@@ -49,12 +64,9 @@ def main():
         import scat.writers.txtwriter
         if args.pcap:
             import scat.writers.pcapwriter
-            
-        print("✅ Modules imported successfully")
-        
+        print("705 Modules imported successfully")
         # Create writers based on options
         writers = []
-        
         if not args.txt_only:
             json_file = f"{output_prefix}_parsed.json"
             json_writer = scat.writers.jsonwriter.JsonWriter(json_file)

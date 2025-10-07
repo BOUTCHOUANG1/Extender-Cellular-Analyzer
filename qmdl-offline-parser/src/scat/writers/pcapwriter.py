@@ -1,11 +1,26 @@
+
 #!/usr/bin/env python3
 # coding: utf8
+"""
+PcapWriter Module
+
+Provides a class for writing parsed cellular log data to PCAP format for use with Wireshark or other packet analysis tools.
+Handles construction of Ethernet, IP, and UDP headers and writes packets to a PCAP file.
+"""
 
 import datetime
 import struct
 
+
 class PcapWriter:
+    """
+    Handles writing parsed cellular log data to a PCAP file.
+    Constructs Ethernet, IP, and UDP headers and writes packets for analysis in Wireshark.
+    """
     def __init__(self, filename, port_cp = 4729, port_up = 47290):
+        """
+        Initialize the PcapWriter with output filename and default header values.
+        """
         self.port_cp = port_cp
         self.port_up = port_up
         self.ip_id = 0
@@ -24,9 +39,20 @@ class PcapWriter:
         self.pcap_file.write(pcap_global_hdr)
 
     def __enter__(self):
+        """
+        Support for context manager usage (with statement).
+        """
         return self
 
     def write_pkt(self, sock_content, port, radio_id=0, ts=datetime.datetime.now()):
+        """
+        Write a single packet to the PCAP file, constructing all necessary headers.
+        Args:
+            sock_content: Raw packet content
+            port: Destination UDP port
+            radio_id: Radio interface identifier
+            ts: Timestamp for the packet
+        """
         pcap_hdr = struct.pack('<LLLL',
                 int(ts.timestamp()) % 4294967296,
                 ts.microsecond,

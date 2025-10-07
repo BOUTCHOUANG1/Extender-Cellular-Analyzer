@@ -1,5 +1,18 @@
+
 #!/usr/bin/env python3
 # coding: utf8
+"""
+QMDL Offline Parser Main Entry Point
+
+This script provides the command-line interface for offline analysis of Qualcomm diagnostic dumps.
+It loads available parser modules, sets up argument parsing, and manages output writers.
+
+Key functions:
+- Loads all available parser modules
+- Handles command-line arguments for selecting baseband type, output format, and debug options
+- Manages signal handling for graceful termination
+- Entry point for offline file analysis
+"""
 
 import scat.iodevices
 import scat.writers

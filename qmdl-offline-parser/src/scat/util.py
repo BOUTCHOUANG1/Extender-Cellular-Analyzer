@@ -1,5 +1,11 @@
+
 #!/usr/bin/python3
 # coding: utf8
+"""
+util.py - Utility and helper functions for SCAT/QMDL parsing
+
+Provides protocol helpers, CRC calculations, bitstring manipulation, and other shared logic used throughout the parser and writers.
+"""
 
 from enum import IntEnum, unique
 from packaging import version

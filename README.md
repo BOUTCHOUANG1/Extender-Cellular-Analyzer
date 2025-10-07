@@ -63,6 +63,11 @@ Extender-Cellular-Analyzer is a Python-based tool for offline analysis of cellul
 
 ---
 
+
+## Code Documentation & Readability
+- All major source files now include comprehensive docstrings and inline comments explaining their logic, classes, and functions.
+- This makes the codebase much easier to read, understand, and maintain for both Python and non-Python developers.
+
 ## Where to Find More Details
 - **Feature explanations and testing:** See [`SCAT_Feature_Test_Documentation.md`](./SCAT_Feature_Test_Documentation.md)
 - **Quick start and commands:** See the top of this README
