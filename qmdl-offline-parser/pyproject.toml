@@ -1,0 +1,42 @@
+[project]
+name = "qmdl-offline-parser"
+version = "1.4.0.post1"
+authors = [
+    { name="QMDL Offline Parser Contributors" },
+    { name="Original SCAT by Shinjo Park", email="peremen@gmail.com" },
+]
+description = "QMDL Offline Parser - Fork of SCAT for offline Qualcomm diagnostic dump analysis"
+readme = "README.md"
+license = {text = "GPL-2.0-or-later"}
+classifiers = [
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Telecommunications Industry",
+    "Topic :: Communications",
+    "Topic :: System :: Networking",
+]
+
+requires-python = ">=3.7"
+dependencies = [
+    "bitstring>=3.1.7",
+    "packaging>=19.0"
+]
+[project.optional-dependencies]
+fastcrc = [
+    "libscrc>=1.8.0",
+]
+
+[project.urls]
+"Original SCAT Homepage" = "https://github.com/fgsect/scat"
+"Original SCAT Release" = "https://github.com/fgsect/scat/releases/tag/v1.4.0"
+
+[project.scripts]
+qmdl-parser = "scat.main:scat_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scat"]
