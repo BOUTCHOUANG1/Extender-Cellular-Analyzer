@@ -231,6 +231,11 @@ def scat_main():
             # TXT only  
             from scat.writers.txtwriter import TxtWriter
             writer = TxtWriter(args.txt_file)
+            # Force legacy example header to improve parity (optional)
+            try:
+                writer.force_example_header = True
+            except Exception:
+                pass
             if args.dump and len(args.dump) > 0:
                 writer.set_input_filename(args.dump[0])
         # If only PCAP requested with preserve_intermediate, create PcapWriter
