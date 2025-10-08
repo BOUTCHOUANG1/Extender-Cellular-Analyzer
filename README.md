@@ -90,6 +90,25 @@ Contributions are welcome! If you want to add features or fix bugs, fork the rep
 
 *Last updated: October 7, 2025*
 
+## Developer notes (October 8, 2025)
+
+Recent focused changes were made to improve parity with a provided `example.txt` layout and to harden some Qualcomm event parsing. Key modifications:
+
+- `qmdl-offline-parser/src/scat/writers/txtwriter.py`:
+	- Use literal tabs for event summary lines and two literal tabs for `Payload String` lines.
+	- Wrap payload hex at 16 bytes and pad lines to a fixed target column (174) to reproduce trailing spaces in `example.txt`.
+	- Adjust timestamp formatting to match example month/day spacing.
+
+- `qmdl-offline-parser/src/scat/parsers/qualcomm/diagcommoneventparser.py`:
+	- Verified/added decoders for event IDs 2865 (QSHRINK) and 2866 (PROCESS_NAME) that populate `payload_str` (GUIDs / process names).
+
+- `scripts/normalize_txt_to_example.py`:
+	- A deterministic post-processor that rewrites an existing TXT output to follow the example layout when the original QMDL is not available.
+
+Notes:
+- These edits focus on formatting parity. Data content (timestamps, payload bytes, event counts) differ unless the exact QMDL used to produce `example.txt` is supplied.
+- See `CHANGELOG.md` and `scripts/README.md` for more details.
+
 ## Overview
 Extender-Cellular-Analyzer is a comprehensive tool for parsing, analyzing, and reporting cellular log data from QMDL2 files. It supports advanced feature extraction, robust output generation (JSON, TXT, PCAP), and is designed for both machine and human analysis workflows.
 
