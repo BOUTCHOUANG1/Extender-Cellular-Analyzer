@@ -25,14 +25,12 @@ class DiagLteEventParser:
         # https://source.codeaurora.org/quic/la/platform/vendor/qcom-opensource/wlan/qcacld-2.0/tree/CORE/VOSS/inc/event_defs.h
         # https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/drivers/staging/qcacld-2.0/CORE/VOSS/inc/event_defs.h
         self.process = {
-            # event ID, (function, event name)
+            # LTE Events
             1605: (self.parse_event_lte_rrc_timer_status, 'LTE_RRC_TIMER_STATUS'),
             1606: (self.parse_event_lte_rrc_state_change, 'LTE_RRC_STATE_CHANGE'),
             1609: (self.parse_event_lte_rrc_dl_msg, 'LTE_RRC_DL_MSG'),
             1610: (self.parse_event_lte_rrc_ul_msg, 'LTE_RRC_UL_MSG'),
-            # 1611: (self.parse_evnet_lte_rrc_new_cell_ind, 'LTE_RRC_NEW_CELL'),
             1614: (self.parse_event_lte_rrc_paging_drx_cycle, 'LTE_RRC_PAGING_DRX_CYCLE'),
-
             1627: (self.parse_event_lte_nas_msg, 'LTE_CM_INCOMING_MSG'),
             1628: (self.parse_event_lte_nas_msg, 'LTE_CM_OUTGOING_MSG'),
             1629: (self.parse_event_lte_nas_msg, 'LTE_EMM_INCOMING_MSG'),
@@ -41,20 +39,85 @@ class DiagLteEventParser:
             1634: (self.parse_event_lte_nas_msg, 'LTE_REG_OUTGOING_MSG'),
             1635: (self.parse_event_lte_nas_msg, 'LTE_ESM_INCOMING_MSG'),
             1636: (self.parse_event_lte_nas_msg, 'LTE_ESM_OUTGOING_MSG'),
-
             1966: (self.parse_event_lte_nas_ota_msg, 'LTE_EMM_OTA_INCOMING_MSG'),
             1967: (self.parse_event_lte_nas_ota_msg, 'LTE_EMM_OTA_OUTGOING_MSG'),
             1968: (self.parse_event_lte_nas_ota_msg, 'LTE_ESM_OTA_INCOMING_MSG'),
             1969: (self.parse_event_lte_nas_ota_msg, 'LTE_ESM_OTA_OUTGOING_MSG'),
-
             1631: (self.parse_event_lte_emm_esm_timer, 'LTE_EMM_TIMER_START'),
             1632: (self.parse_event_lte_emm_esm_timer, 'LTE_EMM_TIMER_EXPIRY'),
             1637: (self.parse_event_lte_emm_esm_timer, 'LTE_ESM_TIMER_START'),
             1638: (self.parse_event_lte_emm_esm_timer, 'LTE_ESM_TIMER_EXPIRY'),
-
             1938: (self.parse_event_lte_ml1_phr_report, 'LTE_ML1_PHR_REPORT'),
             1994: (self.parse_event_lte_rrc_state_change_trigger, 'LTE_RRC_STATE_CHANGE_TRIGGER'),
+            # WCDMA/UMTS Events
+            2100: (self.parse_event_wcdma_rrc_state_change, 'WCDMA_RRC_STATE_CHANGE'),
+            2101: (self.parse_event_wcdma_rrc_dl_msg, 'WCDMA_RRC_DL_MSG'),
+            2102: (self.parse_event_wcdma_rrc_ul_msg, 'WCDMA_RRC_UL_MSG'),
+            2103: (self.parse_event_wcdma_rrc_paging_drx_cycle, 'WCDMA_RRC_PAGING_DRX_CYCLE'),
+            2127: (self.parse_event_wcdma_nas_msg, 'WCDMA_CM_INCOMING_MSG'),
+            2128: (self.parse_event_wcdma_nas_msg, 'WCDMA_CM_OUTGOING_MSG'),
+            2129: (self.parse_event_wcdma_nas_msg, 'WCDMA_EMM_INCOMING_MSG'),
+            2130: (self.parse_event_wcdma_nas_msg, 'WCDMA_EMM_OUTGOING_MSG'),
+            2133: (self.parse_event_wcdma_nas_msg, 'WCDMA_REG_INCOMING_MSG'),
+            2134: (self.parse_event_wcdma_nas_msg, 'WCDMA_REG_OUTGOING_MSG'),
+            2135: (self.parse_event_wcdma_nas_msg, 'WCDMA_ESM_INCOMING_MSG'),
+            2136: (self.parse_event_wcdma_nas_msg, 'WCDMA_ESM_OUTGOING_MSG'),
+            # GSM Events
+            1200: (self.parse_event_gsm_rach_attempt, 'GSM_RACH_ATTEMPT'),
+            1201: (self.parse_event_gsm_rach_success, 'GSM_RACH_SUCCESS'),
+            1202: (self.parse_event_gsm_rach_failure, 'GSM_RACH_FAILURE'),
+            1210: (self.parse_event_gsm_cell_selection, 'GSM_CELL_SELECTION'),
+            1211: (self.parse_event_gsm_cell_reselection, 'GSM_CELL_RESELECTION'),
+            # 5G NR Events
+            3000: (self.parse_event_nr_rrc_state_change, 'NR_RRC_STATE_CHANGE'),
+            3001: (self.parse_event_nr_rrc_dl_msg, 'NR_RRC_DL_MSG'),
+            3002: (self.parse_event_nr_rrc_ul_msg, 'NR_RRC_UL_MSG'),
+            3010: (self.parse_event_nr_rrc_paging_drx_cycle, 'NR_RRC_PAGING_DRX_CYCLE'),
+            3027: (self.parse_event_nr_nas_msg, 'NR_CM_INCOMING_MSG'),
+            3028: (self.parse_event_nr_nas_msg, 'NR_CM_OUTGOING_MSG'),
+            3029: (self.parse_event_nr_nas_msg, 'NR_EMM_INCOMING_MSG'),
+            3030: (self.parse_event_nr_nas_msg, 'NR_EMM_OUTGOING_MSG'),
+            3033: (self.parse_event_nr_nas_msg, 'NR_REG_INCOMING_MSG'),
+            3034: (self.parse_event_nr_nas_msg, 'NR_REG_OUTGOING_MSG'),
+            3035: (self.parse_event_nr_nas_msg, 'NR_ESM_INCOMING_MSG'),
+            3036: (self.parse_event_nr_nas_msg, 'NR_ESM_OUTGOING_MSG'),
         }
+
+    # WCDMA/UMTS event decoders
+    def parse_event_wcdma_rrc_state_change(self, ts, event_id, arg_bin):
+        return {'type': 'WCDMA_RRC_STATE_CHANGE', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_wcdma_rrc_dl_msg(self, ts, event_id, arg_bin):
+        return {'type': 'WCDMA_RRC_DL_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_wcdma_rrc_ul_msg(self, ts, event_id, arg_bin):
+        return {'type': 'WCDMA_RRC_UL_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_wcdma_rrc_paging_drx_cycle(self, ts, event_id, arg_bin):
+        return {'type': 'WCDMA_RRC_PAGING_DRX_CYCLE', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_wcdma_nas_msg(self, ts, event_id, arg_bin):
+        return {'type': 'WCDMA_NAS_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+
+    # GSM event decoders
+    def parse_event_gsm_rach_attempt(self, ts, event_id, arg_bin):
+        return {'type': 'GSM_RACH_ATTEMPT', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_gsm_rach_success(self, ts, event_id, arg_bin):
+        return {'type': 'GSM_RACH_SUCCESS', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_gsm_rach_failure(self, ts, event_id, arg_bin):
+        return {'type': 'GSM_RACH_FAILURE', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_gsm_cell_selection(self, ts, event_id, arg_bin):
+        return {'type': 'GSM_CELL_SELECTION', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_gsm_cell_reselection(self, ts, event_id, arg_bin):
+        return {'type': 'GSM_CELL_RESELECTION', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+
+    # 5G NR event decoders
+    def parse_event_nr_rrc_state_change(self, ts, event_id, arg_bin):
+        return {'type': 'NR_RRC_STATE_CHANGE', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_nr_rrc_dl_msg(self, ts, event_id, arg_bin):
+        return {'type': 'NR_RRC_DL_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_nr_rrc_ul_msg(self, ts, event_id, arg_bin):
+        return {'type': 'NR_RRC_UL_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_nr_rrc_paging_drx_cycle(self, ts, event_id, arg_bin):
+        return {'type': 'NR_RRC_PAGING_DRX_CYCLE', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
+    def parse_event_nr_nas_msg(self, ts, event_id, arg_bin):
+        return {'type': 'NR_NAS_MSG', 'id': event_id, 'thread': '00', 'payload': binascii.hexlify(arg_bin).decode(), 'payload_str': '', 'timestamp': ts}
 
     def update_parameters(self, display_format, gsmtapv3):
         self.display_format = display_format

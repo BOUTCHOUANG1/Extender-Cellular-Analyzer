@@ -1279,6 +1279,7 @@ class DiagLteLogParser:
                 arfcn = item.earfcn,
                 frame_number = sfn,
                 sub_type = gsmtap_subtype[0],
+                sub_slot = subfn,
                 device_sec = ts_sec,
                 device_usec = ts_usec)
 

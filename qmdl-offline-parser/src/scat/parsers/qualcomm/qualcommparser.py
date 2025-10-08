@@ -605,62 +605,42 @@ class QualcommParser:
         else:
             radio_id = 0
 
-        if 'ts' in parse_result:
-            ts = parse_result['ts']
-        else:
-            ts = datetime.datetime.now()
-
         # Enhanced parsing: extract structured data
-        enhanced_result = parse_result
-        if self.use_enhanced_parsing and self.enhanced_parser:
+        if hasattr(self, 'use_enhanced_parsing') and self.use_enhanced_parsing and hasattr(self, 'enhanced_parser') and self.enhanced_parser:
             enhanced_result = self.enhanced_parser.enhance_parse_result(parse_result)
+        else:
+            enhanced_result = parse_result
 
+        # Collect events from cp if present and convert to dicts
+        event_list = []
         if 'cp' in enhanced_result:
-            if 'layer' in enhanced_result:
-                if enhanced_result['layer'] in self.layers:
-                    for sock_content in enhanced_result['cp']:
-                        self.writer.write_cp(sock_content, radio_id, ts)
-            else:
-                for sock_content in enhanced_result['cp']:
-                    self.writer.write_cp(sock_content, radio_id, ts)
+            for item in enhanced_result['cp']:
+                if isinstance(item, dict) and 'type' in item:
+                    # Accept all event dicts, not just those starting with EVENT_DIAG_
+                    event_list.append(item)
+                    # Force writing event block for every event dict
+                    if hasattr(self.writer, '_write_event'):
+                        # Use timestamp from event dict if present, else fallback
+                        ts_event = item.get('timestamp', enhanced_result.get('ts', None))
+                        self.writer._write_event(item, ts_event.strftime('%Y %b %d %H:%M:%S.%f')[:-3] if hasattr(ts_event, 'strftime') else str(ts_event), radio_id)
+            # Write events to TXT writer
+            if event_list:
+                enhanced_result['event'] = event_list
+            # Also write CP to TXT if needed
+            for sock_content in enhanced_result['cp']:
+                if not (isinstance(sock_content, dict) and 'type' in sock_content):
+                    self.writer.write_cp(sock_content, radio_id, enhanced_result.get('ts', None))
 
         if 'up' in enhanced_result:
-            if 'layer' in enhanced_result:
-                if enhanced_result['layer'] in self.layers:
-                    for sock_content in enhanced_result['up']:
-                        self.writer.write_up(sock_content, radio_id, ts)
-            else:
-                for sock_content in enhanced_result['up']:
-                    self.writer.write_up(sock_content, radio_id, ts)
+            for sock_content in enhanced_result['up']:
+                self.writer.write_up(sock_content, radio_id, enhanced_result.get('ts', None))
 
         # Pass structured data to enhanced writers
         if hasattr(self.writer, 'write_parsed_data'):
-            self.writer.write_parsed_data(enhanced_result, radio_id, ts)
+            self.writer.write_parsed_data(enhanced_result, radio_id, enhanced_result.get('ts', None))
 
         if hasattr(self.writer, 'write_stdout_data') and 'stdout' in enhanced_result:
-            if len(enhanced_result['stdout']) > 0:
-                self.writer.write_stdout_data(enhanced_result['stdout'], radio_id, ts)
-
-        if 'stdout' in enhanced_result:
-            if len(enhanced_result['stdout']) > 0:
-                if self.combine_stdout:
-                    for l in enhanced_result['stdout'].split('\n'):
-                        osmocore_log_hdr = util.create_osmocore_logging_header(
-                            timestamp = ts,
-                            process_name = Path(sys.argv[0]).name,
-                            pid = os.getpid(),
-                            level = 3,
-                            subsys_name = self.__class__.__name__,
-                            filename = Path(__file__).name,
-                            line_number = getframeinfo(currentframe()).lineno
-                        )
-                        gsmtap_hdr = util.create_gsmtap_header(
-                            version = 2,
-                            payload_type = util.gsmtap_type.OSMOCORE_LOG)
-                        self.writer.write_cp(gsmtap_hdr + osmocore_log_hdr + l.encode('utf-8'), radio_id, ts)
-                else:
-                    for l in enhanced_result['stdout'].split('\n'):
-                        print('Radio {}: {}'.format(radio_id, l))
+            self.writer.write_stdout_data(enhanced_result['stdout'], radio_id, enhanced_result.get('ts', None))
 
     log_header = namedtuple('QcDiagLogHeader', 'cmd_code reserved length1 length2 log_id timestamp')
 
@@ -764,67 +744,103 @@ class QualcommParser:
         pos = 3
         event_pkts = []
         ts = datetime.datetime.now()
+        # --- LOGGING PATCH: Collect all event IDs encountered ---
+        if not hasattr(self, '_event_id_log'):
+            self._event_id_log = set()
         while pos < len(pkt):
             # id 12b, _pad 1b, payload_len 2b, ts_trunc 1b
+            # defensive: ensure enough bytes for header
+            if pos + 2 > len(pkt):
+                self.logger.log(logging.WARNING, 'Truncated event header at pos %d (len %d)', pos, len(pkt))
+                break
             _eid = struct.unpack('<H', pkt[pos:pos+2])[0]
             event_id = _eid & 0xfff
             payload_len = (_eid & 0x6000) >> 13
             ts_trunc = (_eid & 0x8000) >> 15 # 0: 64bit, 1: 16bit TS
             if ts_trunc == 0:
+                # ensure there are 8 bytes available for 64-bit timestamp
+                if pos + 10 > len(pkt):
+                    self.logger.log(logging.WARNING, 'Truncated 64-bit timestamp for event id %d at pos %d', event_id, pos)
+                    # stop parsing further events in this packet
+                    break
                 ts = struct.unpack('<Q', pkt[pos+2:pos+10])[0]
                 ts = util.parse_qxdm_ts(ts)
                 pos += 10
             else:
-                #ts = struct.unpack('<H', pkt[pos+2:pos+4])[0]
                 # TODO: correctly parse ts
                 ts = datetime.datetime.now()
                 pos += 4
 
+            event_dict = None
             assert (payload_len >= 0) and (payload_len <= 3)
+            # --- LOGGING PATCH: Add event_id to log ---
+            self._event_id_log.add(event_id)
             if payload_len == 0:
                 # No payload
                 if event_id in self.process_event.keys():
-                    event_pkts.append(self.process_event[event_id][0](ts, event_id))
+                    event_dict = self.process_event[event_id][0](ts, event_id)
                 elif event_id in self.no_process_event.keys():
-                    pass
+                    event_dict = None
                 else:
-                    event_pkts.append(self.diag_fallback_event_parser.parse_event_fallback(ts, event_id))
+                    event_dict = self.diag_fallback_event_parser.parse_event_fallback(ts, event_id)
+                if event_dict is not None:
+                    event_pkts.append(event_dict)
             elif payload_len == 1:
                 # 1x uint8
                 arg1 = pkt[pos]
-
                 if event_id in self.process_event.keys():
-                    event_pkts.append(self.process_event[event_id][0](ts, event_id, arg1))
+                    event_dict = self.process_event[event_id][0](ts, event_id, arg1)
                 elif event_id in self.no_process_event.keys():
-                    pass
+                    event_dict = None
                 else:
-                    event_pkts.append(self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg1))
+                    event_dict = self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg1)
                 pos += 1
+                if event_dict is not None:
+                    event_pkts.append(event_dict)
             elif payload_len == 2:
                 # 2x uint8
                 arg1 = pkt[pos]
                 arg2 = pkt[pos+1]
-
                 if event_id in self.process_event.keys():
-                    event_pkts.append(self.process_event[event_id][0](ts, event_id, arg1, arg2))
+                    event_dict = self.process_event[event_id][0](ts, event_id, arg1, arg2)
                 elif event_id in self.no_process_event.keys():
-                    pass
+                    event_dict = None
                 else:
-                    event_pkts.append(self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg1, arg2))
+                    event_dict = self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg1, arg2)
                 pos += 2
+                if event_dict is not None:
+                    event_pkts.append(event_dict)
             elif payload_len == 3:
                 # Pascal string
+                # ensure we have at least the length byte
+                if pos + 1 > len(pkt):
+                    self.logger.log(logging.WARNING, 'Truncated Pascal string length for event id %d at pos %d', event_id, pos)
+                    break
                 bin_len = pkt[pos]
+                if pos + 1 + bin_len > len(pkt):
+                    self.logger.log(logging.WARNING, 'Truncated Pascal string payload for event id %d at pos %d (need %d bytes)', event_id, pos, bin_len)
+                    break
                 arg_bin = pkt[pos+1:pos+1+bin_len]
-
                 if event_id in self.process_event.keys():
-                    event_pkts.append(self.process_event[event_id][0](ts, event_id, arg_bin))
+                    event_dict = self.process_event[event_id][0](ts, event_id, arg_bin)
+                elif event_id in self.no_process_event.keys():
+                    event_dict = None
+                else:
+                    event_dict = self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg_bin)
+                # advance pos by length byte + payload
+                pos += (1 + bin_len)
+                if event_dict is not None:
+                    event_pkts.append(event_dict)
                 elif event_id in self.no_process_event.keys():
                     pass
                 else:
                     event_pkts.append(self.diag_fallback_event_parser.parse_event_fallback(ts, event_id, arg_bin))
-                pos += (1 + pkt[pos])
 
+        # --- LOGGING PATCH: Print all event IDs encountered to console ---
+        if hasattr(self, '_event_id_log'):
+            print('\nEvent IDs encountered during parsing:')
+            for eid in sorted(self._event_id_log):
+                print(eid)
         return {'cp': event_pkts, 'ts': ts}
 
     def parse_diag_log_config(self, pkt):
