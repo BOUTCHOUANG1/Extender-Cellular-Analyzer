@@ -35,6 +35,8 @@ class TxtWriter:
             'bands_seen': set(),
             'technologies': set()
         }
+        # Option: force header hex value to match legacy example (0x1FFB)
+        self.force_example_header = False
         # Write header
         self._write_header()
 
@@ -247,15 +249,119 @@ class TxtWriter:
         self.file_handle.write("\n")
 
     def _write_event(self, event, timestamp_str, radio_id):
-        """Write event information"""
-        self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - EVENT: {event.get('type', 'Unknown').upper()}\n")
-        
-        if event.get('type') == 'rrc_state_change':
-            self.file_handle.write(f"  State: {event.get('state', 'Unknown')}\n")
-        
-        if 'details' in event:
-            self.file_handle.write(f"  Details: {event['details']}\n")
-            
+        """Write event information in example.txt style (exact match).
+        Formats payload bytes as uppercase two-digit hex with single spaces and wraps every 16 bytes.
+        """
+        # Parse timestamp to match 'YYYY Mon DD HH:MM:SS.mmm' (human readable)
+        try:
+            dt = datetime.datetime.strptime(timestamp_str, '%Y %b %d %H:%M:%S.%f')
+            # Format day with a leading space for single-digit days to match example.txt
+            ts_fmt = f"{dt.year} {dt.strftime('%b')} {dt.day:2d}  {dt.strftime('%H:%M:%S.%f')[:-3]}"
+        except Exception:
+            ts_fmt = timestamp_str
+
+        # Thread and event id formatting
+        thread_raw = event.get('thread', '00')
+        try:
+            # allow thread to be int or hex/string
+            if isinstance(thread_raw, int):
+                thread = f"{thread_raw:02X}"
+            else:
+                # try parse as int then format, otherwise keep uppercase of string
+                try:
+                    thread_int = int(str(thread_raw), 0)
+                    thread = f"{thread_int:02X}"
+                except Exception:
+                    thread = str(thread_raw).upper()
+        except Exception:
+            thread = str(thread_raw)
+
+        event_id = event.get('id', 0)
+        # allow forcing header constant for legacy example parity
+        if getattr(self, 'force_example_header', False):
+            header_hex = '0x1FFB'
+        else:
+            header_hex = f"0x{event_id:X}"
+        event_name = event.get('type', 'Unknown')
+
+        # Prepare payload: prefer a preformatted string, otherwise build from bytes
+        payload = event.get('payload', None)
+        if payload is None and 'payload_bytes' in event:
+            payload = '0x' + ' '.join(f"{b:02X}" for b in event['payload_bytes'])
+        elif isinstance(payload, (bytes, bytearray)):
+            payload = '0x' + ' '.join(f"{b:02X}" for b in payload)
+        elif isinstance(payload, str):
+            # normalize spacing and uppercase hex tokens if it looks like hex
+            if payload.startswith('0x'):
+                toks = payload[2:].split()
+                payload = '0x' + ' '.join(t.upper() for t in toks)
+
+        if payload is None:
+            payload = ''
+
+        payload_str = event.get('payload_str', '') or ''
+
+        # Time only for indented line
+        try:
+            # Use the time portion directly from the datetime to avoid issues with multiple spaces
+            time_only = dt.strftime('%H:%M:%S.%f')[:-3]
+        except Exception:
+            # fallback
+            try:
+                time_only = ts_fmt.split()[-1]
+            except Exception:
+                time_only = ts_fmt
+
+        # Write event summary line (matches example.txt)
+        self.file_handle.write(f"{ts_fmt}  [{thread}]  {header_hex}  Event  --  {event_name}\n")
+
+        # Break payload into 16-byte chunks for wrapping
+        payload_lines = []
+        if payload.startswith('0x'):
+            hex_bytes = payload[2:].split()
+            for i in range(0, len(hex_bytes), 16):
+                chunk = hex_bytes[i:i+16]
+                if i == 0:
+                    line = '0x' + ' '.join(chunk)
+                else:
+                    line = ' '.join(chunk)
+                payload_lines.append(line)
+        else:
+            if payload:
+                payload_lines = [payload]
+
+        # Write first payload line with the event summary
+    # Use the observed maximum payload line length from example.txt to match trailing-space padding
+    target_col = 174
+        if payload_lines:
+            first = payload_lines[0]
+            # Use literal tab(s) to match example.txt formatting
+            summary_prefix = f"\t{time_only} Event  0 : {event_name} (ID={event_id})  Payload = "
+
+            # Write each payload line and pad it with spaces up to target_col to mimic the example's trailing spaces
+            # First line includes the summary prefix
+            total_len = len(summary_prefix) + len(first)
+            if total_len < target_col:
+                pad = target_col - total_len
+                self.file_handle.write(f"{summary_prefix}{first}{' ' * pad}\n")
+            else:
+                self.file_handle.write(f"{summary_prefix}{first}\n")
+
+            cont_indent = ' ' * len(summary_prefix)
+            for pl in payload_lines[1:]:
+                total_len = len(cont_indent) + len(pl)
+                if total_len < target_col:
+                    pad = target_col - total_len
+                    self.file_handle.write(f"{cont_indent}{pl}{' ' * pad}\n")
+                else:
+                    self.file_handle.write(f"{cont_indent}{pl}\n")
+        else:
+            self.file_handle.write(f"\t{time_only} Event  0 : {event_name} (ID={event_id})  Payload = \n")
+
+        # Always write the payload string on the next line with two literal tabs (even if empty)
+        if payload_str is not None:
+            self.file_handle.write(f"\t\tPayload String = {payload_str}\n")
+        self.file_handle.write("\n")
         self.file_handle.write("\n")
 
     def _write_security_info(self, security, timestamp_str, radio_id):
