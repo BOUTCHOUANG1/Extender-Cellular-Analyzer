@@ -80,6 +80,8 @@ def scat_main():
     input_group.add_argument('-u', '--usb', help='REMOVED: USB support not available in offline parser', action='store_true')
     input_group.add_argument('-d', '--dump', help='Read from baseband dump (QMDL, SDM, LPD) - PRIMARY MODE', nargs='*')
     input_group.add_argument('--live-stdin', help='Read raw DIAG HDLC stream from stdin for live parsing (experimental)', action='store_true')
+    parser.add_argument('--live-tcp', help='Listen on TCP port and accept a single client for live parsing (e.g. --live-tcp 5000)', type=int)
+    parser.add_argument('--live-host', help='Host/interface for --live-tcp to bind to (default: 127.0.0.1)', type=str, default='127.0.0.1')
 
     # Keep these for compatibility but mark as removed
     serial_group = parser.add_argument_group('Serial device settings (REMOVED - offline only)')
@@ -170,6 +172,9 @@ def scat_main():
     elif args.live_stdin:
         # Use live stdin reader (blocks until stdin closes)
         io_device = scat.iodevices.LiveStdinIO()
+    elif args.live_tcp is not None:
+        # Create a LiveTcpIO listening on the requested interface/port
+        io_device = scat.iodevices.LiveTcp(listen_addr=args.live_host, listen_port=args.live_tcp)
     else:
         print('Error: No input file specified.')
         print('QMDL Offline Parser only supports file input.')
