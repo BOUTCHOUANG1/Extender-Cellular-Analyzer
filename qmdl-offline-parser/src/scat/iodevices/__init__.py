@@ -5,6 +5,7 @@
 # This fork only supports file-based input
 
 from scat.iodevices.fileio import FileIO
+from scat.iodevices.liveio import LiveStdinIO
 
 # Stub classes for compatibility with existing code
 class USBIO:
@@ -14,3 +15,14 @@ class USBIO:
 class SerialIO:
     def __init__(self, *args, **kwargs):
         raise NotImplementedError("Serial support removed in QMDL Offline Parser fork. Use file input only.")
+
+# Live input devices
+# LiveStdinIO can be used for piping a raw DIAG HDLC stream into the parser
+# Example: cat stream.bin | qmdl-parser --live-stdin -t qc --txt-file out.txt
+class LiveIO:
+    """Backward-compatible alias exposing stdin live device."""
+    def __init__(self):
+        # Provide the same constructor semantics as the original Serial/USB stubs
+        self._dev = LiveStdinIO()
+    def __getattr__(self, name):
+        return getattr(self._dev, name)

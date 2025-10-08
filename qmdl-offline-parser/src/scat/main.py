@@ -79,6 +79,7 @@ def scat_main():
     input_group.add_argument('-s', '--serial', help='REMOVED: Serial support not available in offline parser', action='store_true')
     input_group.add_argument('-u', '--usb', help='REMOVED: USB support not available in offline parser', action='store_true')
     input_group.add_argument('-d', '--dump', help='Read from baseband dump (QMDL, SDM, LPD) - PRIMARY MODE', nargs='*')
+    input_group.add_argument('--live-stdin', help='Read raw DIAG HDLC stream from stdin for live parsing (experimental)', action='store_true')
 
     # Keep these for compatibility but mark as removed
     serial_group = parser.add_argument_group('Serial device settings (REMOVED - offline only)')
@@ -166,6 +167,9 @@ def scat_main():
         sys.exit(1)
     elif args.dump:
         io_device = scat.iodevices.FileIO(args.dump)
+    elif args.live_stdin:
+        # Use live stdin reader (blocks until stdin closes)
+        io_device = scat.iodevices.LiveStdinIO()
     else:
         print('Error: No input file specified.')
         print('QMDL Offline Parser only supports file input.')
