@@ -41,6 +41,7 @@ from scat.parsers.qualcomm.diagcommoneventparser import DiagCommonEventParser
 from scat.parsers.qualcomm.diaglteeventparser import DiagLteEventParser
 from scat.parsers.qualcomm.diaggsmeventparser import DiagGsmEventParser
 from scat.parsers.qualcomm.diagfallbackeventparser import DiagFallbackEventParser
+from scat.parsers.qualcomm.diagqcatmsgparser import DiagQCATMsgParser
 
 bitstring_ver = version.parse(bitstring.__version__)
 if bitstring_ver >= version.parse('4.2.0'):
@@ -114,7 +115,8 @@ class QualcommParser:
 
         self.diag_log_parsers = [DiagGsmLogParser(self),
             DiagWcdmaLogParser(self), DiagUmtsLogParser(self),
-            DiagLteLogParser(self), Diag1xLogParser(self), DiagNrLogParser(self)]
+            DiagLteLogParser(self), Diag1xLogParser(self), DiagNrLogParser(self),
+            DiagQCATMsgParser(self)]
         self.process = { }
         self.no_process = { }
 

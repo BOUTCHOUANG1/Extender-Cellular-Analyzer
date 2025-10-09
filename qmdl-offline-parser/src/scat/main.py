@@ -44,12 +44,9 @@ def hexint(string):
         return int(string)
 
 class ListUSBAction(argparse.Action):
-    # List USB devices and then exit - REMOVED in offline parser
     def __call__(self, parser, namespace, values, option_string=None):
-        print("Error: USB support removed in QMDL Offline Parser fork.")
-        print("This tool only supports offline file analysis.")
-        print("Use: qmdl-parser -t qc -d your_file.qmdl --json-file output.json")
-        parser.exit(1)
+        scat.iodevices.USBIO().list_usb_devices()
+        parser.exit()
 
 def scat_main():
     global current_parser
@@ -64,37 +61,36 @@ def scat_main():
 
     valid_layers = ['ip', 'nas', 'rrc', 'pdcp', 'rlc', 'mac', 'qmi']
 
-    parser = argparse.ArgumentParser(description='QMDL Offline Parser - Offline analysis of Qualcomm diagnostic dumps (fork of SCAT v1.4.0)')
+    parser = argparse.ArgumentParser(description='Extender-Cellular-Analyzer - All-in-one tool for live capture and offline analysis of cellular diagnostic data')
     parser.register('action', 'listusb', ListUSBAction)
 
     parser.add_argument('-D', '--debug', help='Print debug information, mostly hexdumps.', action='store_true')
     parser.add_argument('-t', '--type', help='Baseband type to be parsed.\nAvailable types: {}'.format(', '.join(parser_dict.keys())), required=True, choices=list(parser_dict.keys()))
-    parser.add_argument('-l', '--list-devices', help='List USB devices (REMOVED - offline only)', nargs=0, action='listusb')
-    parser.add_argument('-V', '--version', action='version', version='QMDL Offline Parser v1.4.0-offline (based on SCAT v1.4.0)')
+    parser.add_argument('-l', '--list-devices', help='List USB devices and exit', nargs=0, action='listusb')
+    parser.add_argument('-V', '--version', action='version', version='Extender-Cellular-Analyzer v1.4.0+ (SCAT v1.4.0 + Enhanced Features)')
     parser.add_argument('-L', '--layer', help='Specify the layers to see as GSMTAP packets (comma separated).\nAvailable layers: {}, Default: "ip,nas,rrc"'.format(', '.join(valid_layers)), type=str, default='ip,nas,rrc')
     parser.add_argument('-f', '--format', help='Select display format for LAC/RAC/TAC/CID: [d]ecimal, he[x]adecimal (default), [b]oth.', type=str, default='x', choices=['d', 'x', 'b'])
     parser.add_argument('-3', '--gsmtapv3', help='Enable GSMTAPv3 for 2G/3G/4G. Default: enabled only for 5G NR', action='store_true')
 
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument('-s', '--serial', help='REMOVED: Serial support not available in offline parser', action='store_true')
-    input_group.add_argument('-u', '--usb', help='REMOVED: USB support not available in offline parser', action='store_true')
-    input_group.add_argument('-d', '--dump', help='Read from baseband dump (QMDL, SDM, LPD) - PRIMARY MODE', nargs='*')
+    input_group.add_argument('-s', '--serial', help='Use serial diagnostic port')
+    input_group.add_argument('-u', '--usb', action='store_true', help='Use USB diagnostic port')
+    input_group.add_argument('-d', '--dump', help='Read from baseband dump (QMDL, SDM, LPD)', nargs='*')
     input_group.add_argument('--live-stdin', help='Read raw DIAG HDLC stream from stdin for live parsing (experimental)', action='store_true')
     parser.add_argument('--live-tcp', help='Listen on TCP port and accept a single client for live parsing (e.g. --live-tcp 5000)', type=int)
     parser.add_argument('--live-host', help='Host/interface for --live-tcp to bind to (default: 127.0.0.1)', type=str, default='127.0.0.1')
 
-    # Keep these for compatibility but mark as removed
-    serial_group = parser.add_argument_group('Serial device settings (REMOVED - offline only)')
-    serial_group.add_argument('-b', '--baudrate', help='REMOVED: Serial support not available', type=int, default=115200)
-    serial_group.add_argument('--no-rts', action='store_true', help='REMOVED: Serial support not available')
-    serial_group.add_argument('--no-dsr', action='store_true', help='REMOVED: Serial support not available')
+    serial_group = parser.add_argument_group('Serial device settings')
+    serial_group.add_argument('-b', '--baudrate', help='Set the serial baud rate', type=int, default=115200)
+    serial_group.add_argument('--no-rts', action='store_true', help='Do not enable the RTS/CTS')
+    serial_group.add_argument('--no-dsr', action='store_true', help='Do not enable the DSR/DTR')
 
-    usb_group = parser.add_argument_group('USB device settings (REMOVED - offline only)')
-    usb_group.add_argument('-v', '--vendor', help='REMOVED: USB support not available', type=hexint)
-    usb_group.add_argument('-p', '--product', help='REMOVED: USB support not available', type=hexint)
-    usb_group.add_argument('-a', '--address', help='REMOVED: USB support not available', type=str)
-    usb_group.add_argument('-c', '--config', help='REMOVED: USB support not available', type=int, default=-1)
-    usb_group.add_argument('-i', '--interface', help='REMOVED: USB support not available', type=int, default=2)
+    usb_group = parser.add_argument_group('USB device settings')
+    usb_group.add_argument('-v', '--vendor', help='Specify USB vendor ID', type=hexint)
+    usb_group.add_argument('-p', '--product', help='Specify USB product ID', type=hexint)
+    usb_group.add_argument('-a', '--address', help='Specify USB device address(bus:address)', type=str)
+    usb_group.add_argument('-c', '--config', help='Specify USB configuration number for DM port', type=int, default=-1)
+    usb_group.add_argument('-i', '--interface', help='Specify USB interface number for DM port', type=int, default=2)
 
     if 'qc' in parser_dict.keys():
         qc_group = parser.add_argument_group('Qualcomm specific settings')
@@ -154,19 +150,25 @@ def scat_main():
             print('Error: invalid layer {} specified. Available layers: {}'.format(l, ', '.join(valid_layers)))
             sys.exit(1)
 
-    # Device preparation - OFFLINE ONLY (USB/Serial support removed)
+    # Device preparation
     io_device = None
-    
     if args.serial:
-        print('Error: Serial support removed in QMDL Offline Parser fork.')
-        print('This tool only supports offline file analysis.')
-        print('Use: qmdl-parser -t qc -d your_file.qmdl --json-file output.json')
-        sys.exit(1)
+        io_device = scat.iodevices.SerialIO(args.serial, args.baudrate, not args.no_rts, not args.no_dsr)
     elif args.usb:
-        print('Error: USB support removed in QMDL Offline Parser fork.')
-        print('This tool only supports offline file analysis.')
-        print('Use: qmdl-parser -t qc -d your_file.qmdl --json-file output.json')
-        sys.exit(1)
+        io_device = scat.iodevices.USBIO()
+        if args.address:
+            usb_bus, usb_device = args.address.split(':')
+            usb_bus = int(usb_bus, base=10)
+            usb_device = int(usb_device, base=10)
+            io_device.probe_device_by_bus_dev(usb_bus, usb_device)
+        elif args.vendor == None:
+            io_device.guess_device()
+        else:
+            io_device.probe_device_by_vid_pid(args.vendor, args.product)
+
+        if args.config > 0:
+            io_device.set_configuration(args.config)
+        io_device.claim_interface(args.interface)
     elif args.dump:
         io_device = scat.iodevices.FileIO(args.dump)
     elif args.live_stdin:
@@ -308,17 +310,28 @@ def scat_main():
             'format': args.format,
             'gsmtapv3': args.gsmtapv3})
 
-    # Run process - OFFLINE ONLY
+    # Run process
     if args.serial or args.usb:
-        print('Error: Real-time capture not supported in QMDL Offline Parser fork.')
-        print('This tool only supports offline file analysis.')
-        sys.exit(1)
+        current_parser.stop_diag()
+        current_parser.init_diag()
+        current_parser.prepare_diag()
+
+        signal.signal(signal.SIGINT, sigint_handler)
+
+        if not (args.qmdl == None) and args.type == 'qc':
+            current_parser.run_diag(scat.writers.RawWriter(args.qmdl))
+        elif not (args.sdmraw == None) and args.type == 'sec':
+            current_parser.run_diag(scat.writers.RawWriter(args.sdmraw))
+        else:
+            current_parser.run_diag()
+
+        current_parser.stop_diag()
     elif args.dump:
         print(f"🔍 Analyzing QMDL file(s): {', '.join(args.dump)}")
         current_parser.read_dump()
         print("✅ Analysis completed successfully!")
     else:
-        print('Error: Invalid input handler - file input required.')
+        print('Error: Invalid input handler')
         sys.exit(1)
         
     # Cleanup writers

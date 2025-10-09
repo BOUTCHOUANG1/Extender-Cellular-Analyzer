@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
 # coding: utf8
 
-# QMDL Offline Parser - USB and Serial support removed for offline-only operation
-# This fork only supports file-based input
+# Extender-Cellular-Analyzer - All-in-one tool with live capture and offline analysis
 
 from scat.iodevices.fileio import FileIO
 from scat.iodevices.liveio import LiveStdinIO
 from scat.iodevices.tcpio import LiveTcpIO
-
-# Stub classes for compatibility with existing code
-class USBIO:
-    def __init__(self):
-        raise NotImplementedError("USB support removed in QMDL Offline Parser fork. Use file input only.")
-        
-class SerialIO:
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError("Serial support removed in QMDL Offline Parser fork. Use file input only.")
+from scat.iodevices.usbio import USBIO
+from scat.iodevices.serialio import SerialIO
 
 # Live input devices
 # LiveStdinIO can be used for piping a raw DIAG HDLC stream into the parser

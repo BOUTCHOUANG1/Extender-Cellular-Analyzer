@@ -1,0 +1,160 @@
+================================================================================
+LIVE CAPTURE DOCUMENTATION - COMPLETE ✅
+================================================================================
+
+Created: docs/LIVE_CAPTURE_GUIDE.md (13 KB)
+Status: Comprehensive guide with platform-specific instructions
+
+================================================================================
+WHAT'S DOCUMENTED
+================================================================================
+
+✅ USB Capture
+  - Ubuntu/Linux (step-by-step)
+  - Windows (step-by-step)
+  - macOS (step-by-step)
+
+✅ Serial Capture
+  - Ubuntu/Linux (step-by-step)
+  - Windows (step-by-step)
+  - macOS (step-by-step)
+
+✅ Device Setup
+  - Enabling diagnostic mode
+  - Checking diagnostic mode
+  - Device-specific codes
+
+✅ Command Reference
+  - Basic USB capture
+  - Basic serial capture
+  - All output formats
+  - Specific protocol layers
+  - Custom serial settings
+  - Specific USB device selection
+
+✅ Real-World Examples
+  - Quick USB capture
+  - Comprehensive capture
+  - Serial modem capture
+  - Long-term monitoring
+
+✅ Troubleshooting
+  - USB device not found (all platforms)
+  - Permission denied (all platforms)
+  - No data captured
+  - libusb errors (all platforms)
+  - Serial port access denied (all platforms)
+
+✅ Advanced Usage
+  - TCP server mode
+  - Stdin pipe mode
+  - Filtering specific messages
+
+================================================================================
+PLATFORM-SPECIFIC COMMANDS
+================================================================================
+
+Ubuntu/Linux USB:
+  python3 -m scat.main -t qc -u --events --txt-file output.txt
+
+Windows USB:
+  python -m scat.main -t qc -u --events --txt-file output.txt
+
+macOS USB:
+  python3 -m scat.main -t qc -u --events --txt-file output.txt
+
+Ubuntu/Linux Serial:
+  python3 -m scat.main -t qc -s /dev/ttyUSB0 -b 115200 --events --txt-file output.txt
+
+Windows Serial:
+  python -m scat.main -t qc -s COM3 -b 115200 --events --txt-file output.txt
+
+macOS Serial:
+  python3 -m scat.main -t qc -s /dev/cu.usbserial-1234 -b 115200 --events --txt-file output.txt
+
+================================================================================
+QUICK START EXAMPLES
+================================================================================
+
+1. USB Capture (All Platforms):
+   cd qmdl-offline-parser/src
+   python3 -m scat.main -t qc -u --events --txt-file live.txt
+
+2. Serial Capture:
+   python3 -m scat.main -t qc -s /dev/ttyUSB0 -b 115200 --events --txt-file serial.txt
+
+3. All Output Formats:
+   python3 -m scat.main -t qc -u --events --msgs \
+       --txt-file out.txt --json-file out.json -F out.pcap
+
+================================================================================
+TROUBLESHOOTING COVERED
+================================================================================
+
+✅ USB device not found
+  - lsusb commands (Linux)
+  - Device Manager (Windows)
+  - system_profiler (macOS)
+
+✅ Permission issues
+  - dialout group (Linux)
+  - Run as Administrator (Windows)
+  - libusb installation (macOS)
+
+✅ No data captured
+  - Diagnostic mode verification
+  - Baudrate testing
+  - Debug output
+
+✅ libusb errors
+  - Installation commands (all platforms)
+  - DLL placement (Windows)
+  - Homebrew installation (macOS)
+
+================================================================================
+DOCUMENTATION STRUCTURE
+================================================================================
+
+docs/
+├── LIVE_CAPTURE_GUIDE.md      ← NEW! Comprehensive live capture guide
+├── FULL_QCAT_PARITY_COMPLETE.md
+├── ALL_FORMATS_VERIFICATION.md
+├── QUICK_START.md
+├── PROJECT_SUMMARY.md
+└── live_capture.md             (original, kept for reference)
+
+README.md                       ← Updated with live capture references
+
+================================================================================
+VERIFICATION
+================================================================================
+
+✅ Live capture commands documented for:
+   - Ubuntu/Debian Linux
+   - Windows 7/10/11
+   - macOS 10.14+
+
+✅ Both USB and Serial capture covered
+
+✅ Platform-specific troubleshooting included
+
+✅ Real-world examples provided
+
+✅ Quick reference commands available
+
+================================================================================
+FOR DEVELOPERS
+================================================================================
+
+To perform live capture:
+
+1. Read docs/LIVE_CAPTURE_GUIDE.md
+2. Follow your platform's setup section
+3. Enable diagnostic mode on device
+4. Run the appropriate command for your platform
+5. Check troubleshooting if issues occur
+
+================================================================================
+LIVE CAPTURE IS FULLY DOCUMENTED ✅
+================================================================================
+

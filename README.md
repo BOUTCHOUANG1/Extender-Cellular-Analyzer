@@ -1,180 +1,387 @@
-# Extender-Cellular-Analyzer
+# Extender Cellular Analyzer
 
-## Project Overview & Developer Guide
+**All-in-One Cellular Log Analysis Tool**
 
-### What is this project?
-Extender-Cellular-Analyzer is a Python-based tool for offline analysis of cellular diagnostic logs (QMDL2 format, typically from Qualcomm devices). It parses these logs and extracts detailed information about network events, measurements, and control messages, outputting results in JSON, TXT, and PCAP formats for further analysis (including in Wireshark).
-
-### How does it work?
-- **Input:** You provide a QMDL2 log file (e.g., `2.qmdl2`).
-- **Processing:** The tool parses the file, extracts cellular events, measurements, and metadata.
-- **Output:** Results are written to:
-	- `2_output.json` (structured data for automation/scripts)
-	- `2_output.txt` (human-readable report)
-	- `2_output.pcap` (packet capture for Wireshark)
+Comprehensive tool for parsing and analyzing Qualcomm QMDL diagnostic logs with live USB/Serial capture support and offline analysis capabilities. Combines SCAT v1.4.0 live capture features with enhanced offline parsing.
 
 ---
-
-## Main Components & Script Connections
-
-### 1. `main.py` (Entry Point)
-- Located at: `qmdl-offline-parser/src/scat/main.py`
-- Handles command-line arguments, sets up the parser, and manages output writers.
-- Connects to:
-	- **Parsers** (e.g., Qualcomm, Samsung, HiSilicon)
-	- **Writers** (JSON, TXT, PCAP, Socket)
-	- **IODevice** (for reading files)
-
-### 2. Writers
-- **`jsonwriter.py`**: Writes structured output to JSON. Tracks file info, summary stats, cell info, measurements, etc.
-- **`txtwriter.py`**: Writes a readable report to TXT. Includes headers, stats, and parsed events.
-- **`pcapwriter.py`**: Writes packet data to PCAP for Wireshark analysis.
-- All writers are managed by `main.py` and can be combined using a `CompositeWriter` class for multi-format output.
-
-### 3. Parsers
-- **Qualcomm, Samsung, HiSilicon Parsers**: Each vendor has a dedicated parser module (e.g., `qualcommparser.py`). These extract vendor-specific log details.
-- Parsers are selected in `main.py` based on the `--type` argument.
-
-### 4. Enhanced QMDL Parser (`enhanced_qmdl_parser.py`)
-- A wrapper script for maximum information extraction.
-- Handles output file naming, writer setup, and parser configuration.
-- Useful for batch or automated analysis.
-
-### 5. IO Devices
-- **`FileIO`**: Reads log files for offline analysis.
-
----
-
-## How to Patch or Upgrade
-- **Add a new output format:** Create a new writer class (e.g., `csvwriter.py`) and update `main.py` to support it.
-- **Support a new log type/vendor:** Add a new parser module and register it in `main.py`.
-- **Change output structure:** Edit the relevant writer (e.g., `jsonwriter.py`) to adjust fields or formatting.
-- **Improve error handling:** Update exception blocks in `main.py` and writers to provide clearer messages or fallback logic.
-
----
-
-## Example Workflow
-1. Place your QMDL2 file in the project directory.
-2. Run:
-	 ```bash
-	 python3 -m scat.main -t qc -d 2.qmdl2 --json-file 2_output.json --txt-file 2_output.txt --pcap-file 2_output.pcap
-	 ```
-3. Review the outputs. Open the PCAP file in Wireshark for packet-level analysis.
-
----
-
-
-## Code Documentation & Readability
-- All major source files now include comprehensive docstrings and inline comments explaining their logic, classes, and functions.
-- This makes the codebase much easier to read, understand, and maintain for both Python and non-Python developers.
-
-## Where to Find More Details
-- **Feature explanations and testing:** See [`SCAT_Feature_Test_Documentation.md`](./SCAT_Feature_Test_Documentation.md)
-- **Quick start and commands:** See the top of this README
-
----
-
-## For Java Developers & Non-Python Users
-- The architecture is modular: each parser and writer is a class, and the main script wires them together.
-- If you want to patch or extend, look for class definitions and method calls in the relevant `.py` files.
-- Python’s class and method structure is similar to Java, but indentation and imports differ.
-- You can add new features by creating new classes or editing existing ones, then updating the main entry point to use them.
-
----
-
-## Support & Contribution
-For further details, specific field explanations, or troubleshooting, refer to the documentation or open an issue in the repository.
-Contributions are welcome! If you want to add features or fix bugs, fork the repo, make your changes, and submit a pull request.
-
----
-
-*Last updated: October 7, 2025*
-
-## Developer notes (October 8, 2025)
-
-Recent focused changes were made to improve parity with a provided `example.txt` layout and to harden some Qualcomm event parsing. Key modifications:
-
-- `qmdl-offline-parser/src/scat/writers/txtwriter.py`:
-	- Use literal tabs for event summary lines and two literal tabs for `Payload String` lines.
-	- Wrap payload hex at 16 bytes and pad lines to a fixed target column (174) to reproduce trailing spaces in `example.txt`.
-	- Adjust timestamp formatting to match example month/day spacing.
-
-- `qmdl-offline-parser/src/scat/parsers/qualcomm/diagcommoneventparser.py`:
-	- Verified/added decoders for event IDs 2865 (QSHRINK) and 2866 (PROCESS_NAME) that populate `payload_str` (GUIDs / process names).
-
-- `scripts/normalize_txt_to_example.py`:
-	- A deterministic post-processor that rewrites an existing TXT output to follow the example layout when the original QMDL is not available.
-
-Notes:
-- These edits focus on formatting parity. Data content (timestamps, payload bytes, event counts) differ unless the exact QMDL used to produce `example.txt` is supplied.
-- See `CHANGELOG.md` and `scripts/README.md` for more details.
-
-## Overview
-Extender-Cellular-Analyzer is a comprehensive tool for parsing, analyzing, and reporting cellular log data from QMDL2 files. It supports advanced feature extraction, robust output generation (JSON, TXT, PCAP), and is designed for both machine and human analysis workflows.
 
 ## Features
-- **File Information Extraction**: Metadata about the input QMDL2 file (filename, size, timestamp, parser version).
-- **Summary Statistics**: Total messages, cellular messages, RRC/NAS/MAC breakdown, events, measurements, cellular percentage.
-- **Cell Information Extraction**: Detailed LTE cell info (EARFCN, PCI, bandwidth, MCC/MNC, TAC, Cell ID, timestamps).
-- **Measurement Extraction**: LTE measurement data (EARFCN, PCI, SFN/SubFN, timestamps, radio ID).
-- **Control Plane Message Extraction**: Raw control plane messages (length, hex data).
-- **Error and Warning Handling**: Graceful handling and reporting of unknown message versions.
-- **Output Writer Robustness**: Writers handle all data structures (lists, dicts) for parsed fields.
-- **PCAP Output Generation**: Generates a PCAP file for packet analysis in Wireshark.
-- **Timestamp and Radio ID Tracking**: Precise tracking for all parsed events.
-- **Human-Readable Reporting**: TXT report with clear formatting and parsed values.
 
-## Quick Start
-### Prerequisites
-- Python >= 3.7
-- QMDL2 log file (e.g., `2.qmdl2`)
+✅ **Live Capture**
+- USB device capture (Qualcomm diagnostic mode)
+- Serial port capture with configurable baudrate
+- Real-time log streaming
 
-### Installation
-Clone the repository and install dependencies:
-```bash
-git clone https://github.com/BOUTCHOUANG1/Extender-Cellular-Analyzer.git
-cd Extender-Cellular-Analyzer
-pip install -r requirements.txt
-```
+✅ **Offline Analysis**
+- QMDL/DLF/HDF file parsing
+- Batch processing support
+- Multiple file formats
 
-### Running the Parser
-Run the parser with all output options:
-```bash
-python3 -m scat.main -t qc -d 2.qmdl2 --json-file 2_output.json --txt-file 2_output.txt --pcap-file 2_output.pcap --preserve-intermediate
-```
+✅ **Comprehensive Output Formats**
+- **TXT**: QCAT-style human-readable output with full message decoding
+- **JSON**: Structured data for automation and analysis
+- **PCAP**: Wireshark-compatible capture for protocol analysis
 
-#### Output Files
-- `2_output.json`: Machine-readable parsed data
-- `2_output.txt`: Human-readable report
-- `2_output.pcap`: Packet capture for Wireshark
-
-## Output Validation
-- All outputs are generated and validated for completeness and correctness.
-- PCAP file can be opened in Wireshark for advanced analysis.
-- TXT and JSON files contain all extracted features and statistics.
-
-## Documentation
-- [SCAT Feature Test Documentation](./SCAT_Feature_Test_Documentation.md): Detailed feature explanations, testing logic, and workflow.
-- [Feature Testing Guide](./FEATURE_TESTING.md): (Add this file for step-by-step feature testing instructions.)
-
-## Advanced Usage
-- Supports robust error handling and reporting for unknown message types.
-- Output writers are patched to handle variable data structures.
-- All features are exercised and documented in the provided sample outputs.
-
-## Example Workflow
-1. Prepare your QMDL2 log file.
-2. Run the parser with the command above.
-3. Review the generated outputs (`2_output.json`, `2_output.txt`, `2_output.pcap`).
-4. Open the PCAP file in Wireshark for packet-level analysis.
-5. Consult the documentation for feature details and troubleshooting.
-
-## Links
-- [SCAT Feature Test Documentation](./SCAT_Feature_Test_Documentation.md)
-- [Feature Testing Guide](./FEATURE_TESTING.md)
-
-## Support
-For further details, specific field explanations, or troubleshooting, refer to the documentation or open an issue in the repository.
+✅ **Advanced Decoding**
+- Events with full QCAT formatting
+- QMI messages with TLV parsing and service name mapping
+- RUIM/APDU commands with full decoding
+- CM Phone Events with detailed field extraction
+- RRC/NAS/MAC protocol messages
+- LTE/5G NR support
 
 ---
-*Last updated: October 7, 2025*
+
+## Quick Start
+
+### Prerequisites
+- Python 3.8 or higher
+- pip (Python package manager)
+- libusb (for USB capture on Linux/macOS)
+
+### Installation
+
+#### Ubuntu/Debian Linux
+```bash
+# Install system dependencies
+sudo apt update
+sudo apt install python3 python3-pip python3-venv libusb-1.0-0
+
+# Clone repository
+cd /path/to/your/workspace
+git clone <repository-url>
+cd Extender-Cellular-Analyzer
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install -r qmdl-offline-parser/requirements.txt
+```
+
+#### Windows
+```powershell
+# Install Python 3.8+ from https://www.python.org/downloads/
+# Make sure to check "Add Python to PATH" during installation
+
+# Clone repository
+cd C:\path\to\your\workspace
+git clone <repository-url>
+cd Extender-Cellular-Analyzer
+
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r qmdl-offline-parser\requirements.txt
+
+# For USB capture, install libusb:
+# Download from https://libusb.info/ and place libusb-1.0.dll in System32
+```
+
+#### macOS
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install dependencies
+brew install python3 libusb
+
+# Clone repository
+cd /path/to/your/workspace
+git clone <repository-url>
+cd Extender-Cellular-Analyzer
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install Python dependencies
+pip install -r qmdl-offline-parser/requirements.txt
+```
+
+### Basic Usage
+
+#### Offline Analysis (QMDL File)
+```bash
+# Activate virtual environment first
+source venv/bin/activate  # Linux/macOS
+# OR
+venv\Scripts\activate     # Windows
+
+# Parse QMDL file with all output formats
+cd qmdl-offline-parser/src
+python3 -m scat.main -t qc -d /path/to/logfile.qmdl2 \
+    --events --msgs \
+    --txt-file output.txt \
+    --json-file output.json \
+    -F output.pcap
+```
+
+#### Live USB Capture
+```bash
+# Linux/macOS
+python3 -m scat.main -t qc -u \
+    --events --msgs \
+    --txt-file live_capture.txt
+
+# Windows (Run as Administrator)
+python -m scat.main -t qc -u ^
+    --events --msgs ^
+    --txt-file live_capture.txt
+
+# Note: See docs/LIVE_CAPTURE_GUIDE.md for detailed setup
+```
+
+#### Live Serial Capture
+```bash
+# Linux/macOS
+python3 -m scat.main -t qc -s /dev/ttyUSB0 -b 115200 \
+    --events --msgs \
+    --txt-file serial_capture.txt
+
+# Windows
+python -m scat.main -t qc -s COM3 -b 115200 ^
+    --events --msgs ^
+    --txt-file serial_capture.txt
+```
+
+---
+
+## Command Line Options
+
+### Required Arguments
+- `-t, --type {qc,hisi,sec,sprd}` - Parser type (use `qc` for Qualcomm)
+
+### Input Sources (choose one)
+- `-d, --dump [FILE ...]` - Offline QMDL/DLF/HDF files
+- `-u, --usb` - Live USB capture
+- `-s, --serial PORT` - Live serial capture
+- `--live-tcp PORT` - TCP server mode
+
+### Output Options
+- `--txt-file FILE` - Human-readable TXT output (QCAT format)
+- `--json-file FILE` - Structured JSON output
+- `-F, --pcap-file FILE` - PCAP output for Wireshark
+
+### Decoding Options
+- `--events` - Decode events
+- `--msgs` - Decode extended messages
+- `-L, --layer {rrc,nas,mac,pdcp,ip}` - Specific protocol layers
+
+### Serial Options
+- `-b, --baudrate RATE` - Baudrate (default: 115200)
+- `--no-rts` - Disable RTS flow control
+- `--no-dsr` - Disable DSR flow control
+
+### USB Options
+- `-v, --vendor ID` - USB vendor ID
+- `-p, --product ID` - USB product ID
+
+---
+
+## Output Formats
+
+### TXT Format (QCAT-Style)
+Human-readable output with comprehensive message decoding:
+- Events with timestamps, thread IDs, and payload strings
+- QMI messages with service names and TLV parsing
+- RUIM/APDU commands with full decoding
+- CM Phone Events with detailed fields
+
+**Best for:** Quick review, debugging, sharing reports
+
+### JSON Format
+Structured data with complete information:
+```json
+{
+  "file_info": {...},
+  "summary": {
+    "total_messages": 55433,
+    "cellular_messages": 8729
+  },
+  "cell_info": [...],
+  "measurements": [...],
+  "events": [...]
+}
+```
+
+**Best for:** Automation, data mining, integration with other tools
+
+### PCAP Format
+Wireshark-compatible capture with GSMTAP encapsulation:
+- RRC/NAS/MAC protocol messages
+- Layer 2/3 analysis
+- Protocol conformance testing
+
+**Best for:** Deep protocol analysis, Wireshark inspection
+
+---
+
+## Examples
+
+### Example 1: Quick Analysis
+```bash
+# Parse QMDL and generate TXT output
+python3 -m scat.main -t qc -d logfile.qmdl2 --events --txt-file output.txt
+```
+
+### Example 2: Comprehensive Analysis
+```bash
+# Generate all output formats
+python3 -m scat.main -t qc -d logfile.qmdl2 \
+    --events --msgs \
+    --txt-file analysis.txt \
+    --json-file analysis.json \
+    -F analysis.pcap
+```
+
+### Example 3: Live Capture with Filtering
+```bash
+# Capture only RRC and NAS layers
+python3 -m scat.main -t qc -u \
+    --events -L rrc -L nas \
+    --txt-file live.txt \
+    -F live.pcap
+```
+
+### Example 4: Batch Processing
+```bash
+# Process multiple files
+python3 -m scat.main -t qc -d *.qmdl2 \
+    --events --msgs \
+    --json-file batch_output.json
+```
+
+---
+
+## Troubleshooting
+
+### USB Permission Issues (Linux)
+```bash
+# Add user to dialout group
+sudo usermod -a -G dialout $USER
+
+# Or create udev rule
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="05c6", MODE="0666"' | \
+    sudo tee /etc/udev/rules.d/51-android.rules
+sudo udevadm control --reload-rules
+```
+
+### Module Not Found Error
+```bash
+# Make sure you're in the correct directory
+cd qmdl-offline-parser/src
+
+# And virtual environment is activated
+source ../../venv/bin/activate  # Linux/macOS
+..\..\venv\Scripts\activate     # Windows
+```
+
+### libusb Not Found (Windows)
+1. Download libusb from https://libusb.info/
+2. Extract and copy `libusb-1.0.dll` to `C:\Windows\System32`
+3. For 64-bit systems, also copy to `C:\Windows\SysWOW64`
+
+### Serial Port Access Denied
+```bash
+# Linux: Add user to dialout group
+sudo usermod -a -G dialout $USER
+
+# Windows: Run as Administrator or check Device Manager
+```
+
+---
+
+## Project Structure
+
+```
+Extender-Cellular-Analyzer/
+├── qmdl-offline-parser/          # Main parser application
+│   ├── src/scat/                 # Source code
+│   │   ├── parsers/              # Protocol parsers
+│   │   │   └── qualcomm/         # Qualcomm-specific parsers
+│   │   ├── writers/              # Output format writers
+│   │   ├── iodevices/            # I/O device handlers
+│   │   └── main.py               # Entry point
+│   ├── requirements.txt          # Python dependencies
+│   └── pyproject.toml            # Project configuration
+├── docs/                         # Documentation
+│   ├── FULL_QCAT_PARITY_COMPLETE.md
+│   ├── ALL_FORMATS_VERIFICATION.md
+│   └── QUICK_START.md
+├── venv/                         # Virtual environment (created during setup)
+├── CHANGELOG.md                  # Version history
+└── README.md                     # This file
+```
+
+---
+
+## Dependencies
+
+### Python Packages
+- `bitstring>=3.1.7` - Binary data manipulation
+- `libscrc>=1.8.0` - CRC calculations
+- `packaging>=19.0` - Version parsing
+- `pyusb>=1.0.2` - USB device access
+- `pyserial>=3.3` - Serial port communication
+
+### System Libraries
+- `libusb-1.0` - USB device access (Linux/macOS)
+- `libusb-1.0.dll` - USB device access (Windows)
+
+---
+
+## Documentation
+
+Detailed documentation available in the `docs/` directory:
+
+- **[LIVE_CAPTURE_GUIDE.md](docs/LIVE_CAPTURE_GUIDE.md)** - Complete live capture guide (USB/Serial)
+- **[FULL_QCAT_PARITY_COMPLETE.md](docs/FULL_QCAT_PARITY_COMPLETE.md)** - Complete feature documentation
+- **[ALL_FORMATS_VERIFICATION.md](docs/ALL_FORMATS_VERIFICATION.md)** - Output format details
+- **[QUICK_START.md](docs/QUICK_START.md)** - Quick start guide
+- **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Project overview
+
+---
+
+## Contributing
+
+Contributions are welcome! Please ensure:
+1. Code follows existing style
+2. All tests pass
+3. Documentation is updated
+4. Commit messages are clear
+
+---
+
+## License
+
+GPL-2.0-or-later
+
+---
+
+## Credits
+
+- Based on SCAT v1.4.0 (https://github.com/fgsect/scat)
+- Integrates features from Extender-Cellular-Analyzer
+- Enhanced with comprehensive QCAT-style decoding
+
+---
+
+## Support
+
+For issues, questions, or contributions:
+1. Check the documentation in `docs/`
+2. Review existing issues
+3. Create a new issue with detailed information
+
+---
+
+## Version
+
+**Current Version:** 2.0.0  
+**Last Updated:** October 2025  
+**Status:** Production Ready ✅

@@ -1,39 +1,19 @@
-
 #!/usr/bin/env python3
 # coding: utf8
-"""
-USBIO Module
-
-Provides USB device I/O abstraction for reading and writing data to supported USB devices.
-Used for live device communication in supported parser modes.
-"""
 
 import usb
 import scat.util as util
 import logging
 
-
 class USBIO:
-    """
-    USB device I/O abstraction for reading and writing data to supported USB devices.
-    """
     def __init__(self):
-        """
-        Initialize USBIO and set up device handles.
-        """
         self.usb_dev = None
         self.block_until_data = True
 
     def __enter__(self):
-        """
-        Support for context manager usage (with statement).
-        """
         return self
 
     def read(self, read_size, decode_hdlc = False):
-        """
-        Read a chunk of data from the USB device. Optionally decode HDLC framing.
-        """
         buf = b''
         try:
             buf = self.r_handle.read(read_size)
@@ -45,24 +25,15 @@ class USBIO:
         return buf
 
     def write(self, write_buf, encode_hdlc = False):
-        """
-        Write data to the USB device. Optionally encode HDLC framing.
-        """
         if encode_hdlc:
             write_buf = util.wrap(write_buf)
         self.w_handle.write(write_buf)
 
     def write_then_read_discard(self, write_buf, read_size = 0x1000, encode_hdlc = False):
-        """
-        Write data then read and discard a chunk (for compatibility).
-        """
         self.write(write_buf, encode_hdlc)
         self.read(read_size)
 
     def probe_device_by_vid_pid(self, vid, pid):
-        """
-        Probe for a USB device by vendor ID and product ID.
-        """
         print('Trying USB device with vid:pid {:#06x}:{:#06x}'.format(vid, pid))
         if pid is None:
             self.dev = usb.core.find(idVendor=vid)
@@ -72,23 +43,18 @@ class USBIO:
             raise ValueError('Device not found')
 
     def probe_device_by_bus_dev(self, bus, dev):
-        """
-        Probe for a USB device by bus and device address.
-        """
         print('Trying USB device at address {:03d}:{:03d}'.format(bus, dev))
         self.dev = usb.core.find(bus=bus, address=dev)
         if self.dev is None:
             raise ValueError('Device not found')
 
     def guess_device(self):
-        """
-        Attempt to guess the USB device from known vendor IDs.
-        """
         # 0x0408: Samsung
         # 0x1004: LG
         # 0x2931: Jolla
         vid_list = [0x1004, 0x04e8, 0x2931]
         self.dev = None
+
         for vid in vid_list:
             dev = usb.core.find(idVendor=vid)
             if dev is not None:

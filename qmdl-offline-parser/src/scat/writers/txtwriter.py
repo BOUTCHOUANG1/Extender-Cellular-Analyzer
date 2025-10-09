@@ -21,12 +21,14 @@ class TxtWriter:
     Handles writing parsed cellular log data to a human-readable TXT file.
     Tracks statistics and writes detailed message information for analysis and reporting.
     """
-    def __init__(self, txt_filename):
+    def __init__(self, txt_filename, qcat_mode=True):
         """
         Initialize TxtWriter with the output filename and default statistics.
+        qcat_mode: If True, only write events in QCAT format (like example.txt)
         """
         self.txt_filename = txt_filename
         self.file_handle = open(txt_filename, 'w', encoding='utf-8')
+        self.qcat_mode = qcat_mode
         # Statistics tracking
         self.stats = {
             'total_messages': 0,
@@ -36,7 +38,7 @@ class TxtWriter:
             'technologies': set()
         }
         # Option: force header hex value to match legacy example (0x1FFB)
-        self.force_example_header = False
+        self.force_example_header = True  # Always use 0x1FFB for QCAT compatibility
         # Write header
         self._write_header()
 
@@ -64,6 +66,10 @@ class TxtWriter:
         """
         Write control plane data to the TXT file with improved section header and indentation.
         """
+        # In QCAT mode, skip control plane messages (only events are written)
+        if self.qcat_mode:
+            return
+            
         self.stats['total_messages'] += 1
         timestamp_str = ts.strftime('%Y %b %d %H:%M:%S.%f')[:-3] if isinstance(ts, datetime.datetime) else str(ts)
         self.file_handle.write(f"\n{'='*80}\n[CONTROL PLANE MESSAGE] Radio {radio_id} | {timestamp_str}\n{'='*80}\n")
@@ -94,6 +100,15 @@ class TxtWriter:
             elif isinstance(item, dict):
                 write_func(item, timestamp_str, radio_id)
 
+        # In QCAT mode, write events AND QCAT messages (RUIM, QMI, CM)
+        if self.qcat_mode:
+            if 'event' in parsed_result:
+                process_item(parsed_result['event'], self._write_event)
+            if 'qcat_msg' in parsed_result:
+                self._write_qcat_message(parsed_result['qcat_msg'], timestamp_str, radio_id)
+            return
+        
+        # Full mode: write everything
         # Write cell information
         if 'cell_info' in parsed_result:
             process_item(parsed_result['cell_info'], self._write_cell_info)
@@ -118,42 +133,13 @@ class TxtWriter:
         # Write CA combos
         if 'ca_combo' in parsed_result:
             process_item(parsed_result['ca_combo'], self._write_ca_combo)
-        
-            # Helper to process dict or list
-            def process_item(item, write_func):
-                if isinstance(item, list):
-                    for entry in item:
-                        write_func(entry, timestamp_str, radio_id)
-                elif isinstance(item, dict):
-                    write_func(item, timestamp_str, radio_id)
-
-            # Write cell information
-            if 'cell_info' in parsed_result:
-                process_item(parsed_result['cell_info'], self._write_cell_info)
-            # Write measurement data
-            if 'measurement' in parsed_result:
-                process_item(parsed_result['measurement'], self._write_measurement)
-            # Write RRC messages
-            if 'rrc_message' in parsed_result:
-                process_item(parsed_result['rrc_message'], self._write_rrc_message)
-            # Write NAS messages
-            if 'nas_message' in parsed_result:
-                process_item(parsed_result['nas_message'], self._write_nas_message)
-            # Write MAC messages
-            if 'mac_message' in parsed_result:
-                process_item(parsed_result['mac_message'], self._write_mac_message)
-            # Write events
-            if 'event' in parsed_result:
-                process_item(parsed_result['event'], self._write_event)
-            # Write security information
-            if 'security' in parsed_result:
-                process_item(parsed_result['security'], self._write_security_info)
-            # Write CA combos
-            if 'ca_combo' in parsed_result:
-                process_item(parsed_result['ca_combo'], self._write_ca_combo)
 
     def write_stdout_data(self, stdout_text, radio_id=0, ts=None):
         """Write stdout data with enhanced parsing"""
+        # In QCAT mode, skip stdout data (only events are written)
+        if self.qcat_mode:
+            return
+            
         if not stdout_text:
             return
             
@@ -252,13 +238,25 @@ class TxtWriter:
         """Write event information in example.txt style (exact match).
         Formats payload bytes as uppercase two-digit hex with single spaces and wraps every 16 bytes.
         """
-        # Parse timestamp to match 'YYYY Mon DD HH:MM:SS.mmm' (human readable)
-        try:
-            dt = datetime.datetime.strptime(timestamp_str, '%Y %b %d %H:%M:%S.%f')
-            # Format day with a leading space for single-digit days to match example.txt
-            ts_fmt = f"{dt.year} {dt.strftime('%b')} {dt.day:2d}  {dt.strftime('%H:%M:%S.%f')[:-3]}"
-        except Exception:
-            ts_fmt = timestamp_str
+        # Get timestamp from event if available
+        if 'timestamp' in event:
+            ts = event['timestamp']
+            if isinstance(ts, str):
+                # Parse ISO format timestamp
+                try:
+                    dt = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                except:
+                    dt = datetime.datetime.now()
+            elif isinstance(ts, datetime.datetime):
+                dt = ts
+            else:
+                dt = datetime.datetime.now()
+        else:
+            dt = datetime.datetime.now()
+        
+        # Format timestamp to match 'YYYY Mon DD HH:MM:SS.mmm' (human readable)
+        ts_fmt = f"{dt.year} {dt.strftime('%b')} {dt.day:2d}  {dt.strftime('%H:%M:%S.%f')[:-3]}"
+        time_only = dt.strftime('%H:%M:%S.%f')[:-3]
 
         # Thread and event id formatting
         thread_raw = event.get('thread', '00')
@@ -301,16 +299,7 @@ class TxtWriter:
 
         payload_str = event.get('payload_str', '') or ''
 
-        # Time only for indented line
-        try:
-            # Use the time portion directly from the datetime to avoid issues with multiple spaces
-            time_only = dt.strftime('%H:%M:%S.%f')[:-3]
-        except Exception:
-            # fallback
-            try:
-                time_only = ts_fmt.split()[-1]
-            except Exception:
-                time_only = ts_fmt
+        # time_only already set above
 
         # Write event summary line (matches example.txt)
         self.file_handle.write(f"{ts_fmt}  [{thread}]  {header_hex}  Event  --  {event_name}\n")
@@ -331,8 +320,8 @@ class TxtWriter:
                 payload_lines = [payload]
 
         # Write first payload line with the event summary
-    # Use the observed maximum payload line length from example.txt to match trailing-space padding
-    target_col = 174
+        # Use the observed maximum payload line length from example.txt to match trailing-space padding
+        target_col = 174
         if payload_lines:
             first = payload_lines[0]
             # Use literal tab(s) to match example.txt formatting
@@ -383,6 +372,135 @@ class TxtWriter:
         if 'raw_line' in ca_combo:
             self.file_handle.write(f"  {ca_combo['raw_line']}\n")
         self.file_handle.write("\n")
+
+    def _write_qcat_message(self, msg, timestamp_str, radio_id):
+        """Write QCAT messages (RUIM, QMI, CM) in QCAT format"""
+        if not isinstance(msg, dict):
+            return
+        
+        msg_type = msg.get('type', 'unknown')
+        ts = msg.get('timestamp', datetime.datetime.now())
+        
+        # Format timestamp like QCAT: "YYYY Mon DD HH:MM:SS.mmm"
+        if isinstance(ts, str):
+            try:
+                ts = datetime.datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            except:
+                ts = datetime.datetime.now()
+        
+        ts_fmt = f"{ts.year} {ts.strftime('%b')} {ts.day:2d}  {ts.strftime('%H:%M:%S.%f')[:-3]}"
+        time_only = ts.strftime('%H:%M:%S.%f')[:-3]
+        
+        if msg_type == 'ruim_debug':
+            direction = msg.get('direction', 'TX')
+            data = msg.get('data', '')
+            formatted_data = ' '.join([data[i:i+2] for i in range(0, len(data), 2)])
+            
+            self.file_handle.write(f"{ts_fmt}  [00]  0x1098  RUIM Debug\n")
+            self.file_handle.write(" \n")
+            self.file_handle.write(f"\t\t\t\t{direction}          {formatted_data} \n")
+            
+            if direction == 'TX' and 'command' in msg:
+                self.file_handle.write("APDU Parsing\n")
+                self.file_handle.write("  Transaction Start :  \n")
+                self.file_handle.write(f"  slot value:{msg.get('slot', 1)}\n")
+                self.file_handle.write(f"  Command Type:   {msg['command']}\n")
+                self.file_handle.write(f"Logical Channel: {msg.get('channel', 0)}\n")
+                self.file_handle.write("  UICC instruction class\n")
+                self.file_handle.write(f"  CLA - {msg.get('sm_used', 'No SM used between terminal and card')}\n")
+                self.file_handle.write(f"  P1 - 0x{msg.get('p1', 0):02X}\n")
+                self.file_handle.write(f"  P2 - 0x{msg.get('p2', 0):02X}\n")
+                self.file_handle.write(f"  P3 - {msg.get('p3', 0)} bytes\n")
+            
+            if direction == 'RX' and 'status' in msg:
+                self.file_handle.write("APDU Parsing\n")
+                self.file_handle.write("  Transaction Start :  \n")
+                self.file_handle.write(f"  slot value:{msg.get('slot', 1)}\n")
+                sw1 = msg.get('sw1', 0)
+                sw2 = msg.get('sw2', 0)
+                self.file_handle.write(f"Status Words - 0x{sw1:02X} 0x{sw2:02X} -   {msg['status']}\n")
+                if 'response_data' in msg:
+                    self.file_handle.write(f"Response Data: {msg['response_data']}\n")
+                self.file_handle.write("  \n")
+            
+            self.file_handle.write(" \n")
+            self.file_handle.write(f"\t\t{time_only}  \n")
+            self.file_handle.write("\n")
+        
+        elif msg_type == 'qmi_message':
+            msg_type_str = msg.get('msg_type', 'Unknown')
+            version = msg.get('version', 0)
+            counter = msg.get('counter', 0)
+            service_name = msg.get('service_name', 'Unknown')
+            major_rev = msg.get('major_rev', 1)
+            minor_rev = msg.get('minor_rev', 0)
+            con_handle = msg.get('con_handle', 0)
+            msg_id = msg.get('msg_id', 0)
+            qmi_len = msg.get('qmi_length', 0)
+            
+            self.file_handle.write(f"{ts_fmt}  [00]  0x1544  QMI_MCS_QCSI_PKT\n")
+            self.file_handle.write(f"packetVersion = {version}\n")
+            self.file_handle.write(f"MsgType = {msg_type_str}\n")
+            self.file_handle.write(f"Counter = {counter}\n")
+            self.file_handle.write(f"ServiceId = {service_name}\n")
+            self.file_handle.write(f"MajorRev = {major_rev}\n")
+            self.file_handle.write(f"MinorRev = {minor_rev}\n")
+            self.file_handle.write(f"ConHandle = 0x{con_handle:08X}\n")
+            self.file_handle.write(f"MsgId = 0x{msg_id:04X}\n")
+            self.file_handle.write(f"QmiLength = {qmi_len}\n")
+            
+            # Write TLVs
+            tlvs = msg.get('tlvs', [])
+            if tlvs:
+                self.file_handle.write(f"Service_{service_name} {{\n")
+                for tlv in tlvs:
+                    self.file_handle.write(f"   TLV[0x{tlv['type']:02X}] {{\n")
+                    self.file_handle.write(f"      Type = 0x{tlv['type']:02X}\n")
+                    self.file_handle.write(f"      Length = {tlv['length']}\n")
+                    self.file_handle.write(f"      Value = {tlv['value']}\n")
+                    self.file_handle.write("   }\n")
+                self.file_handle.write("}\n")
+            self.file_handle.write("\n")
+        
+        elif msg_type == 'cm_phone_event':
+            version = msg.get('version', 0)
+            event_name = msg.get('event_name', 'Unknown')
+            fields = msg.get('fields', {})
+            
+            self.file_handle.write(f"{ts_fmt}  [00]  0x1273  CM Phone Event\n")
+            self.file_handle.write(f"Version = {version}\n")
+            self.file_handle.write(f"Phone Event = {event_name}\n")
+            
+            # Write all parsed fields
+            for field_name, field_value in fields.items():
+                formatted_name = field_name.replace('_', ' ').title()
+                self.file_handle.write(f"{formatted_name} = {field_value}\n")
+            
+            self.file_handle.write("\n")
+        
+        elif msg_type == 'pm_policy_stats':
+            version = msg.get('version', 0)
+            policy_num = msg.get('policy_num', 0)
+            policy_type = msg.get('policy_type', 0)
+            policy_version = msg.get('policy_version', 0)
+            last_exec_time = msg.get('last_exec_time', 0)
+            elapsed_time = msg.get('elapsed_time', 0)
+            num_rules = msg.get('num_rules', 0)
+            suspend_count = msg.get('suspend_count', 0)
+            is_policy_init = msg.get('is_policy_init', 'false')
+            
+            self.file_handle.write(f"{ts_fmt}  [00]  0x199B  PM Policy Stats Info\n")
+            self.file_handle.write(f"Version = {version}\n")
+            self.file_handle.write(f"Policy Num = {policy_num}\n")
+            self.file_handle.write(f"Policy Type = {policy_type}\n")
+            self.file_handle.write(f"Policy Version = {policy_version}\n")
+            self.file_handle.write(f"Last Exec Time = {last_exec_time}\n")
+            self.file_handle.write(f"Elapsed Time = {elapsed_time}\n")
+            self.file_handle.write(f"RuleSetInfo\n")
+            self.file_handle.write(f"   Num Rules = {num_rules}\n")
+            self.file_handle.write(f"Suspend Count = {suspend_count}\n")
+            self.file_handle.write(f"Is Policy Init = {is_policy_init}\n")
+            self.file_handle.write("\n")
 
     def _categorize_line(self, line):
         """Categorize a log line"""
@@ -471,9 +589,11 @@ class TxtWriter:
 
     def finalize(self):
         """Finalize the report"""
-        self.write_summary()
-        self.file_handle.write(f"Report completed at: {datetime.datetime.now().isoformat()}\n")
-        self.file_handle.write("="*80 + "\n")
+        # In QCAT mode, don't write summary
+        if not self.qcat_mode:
+            self.write_summary()
+            self.file_handle.write(f"Report completed at: {datetime.datetime.now().isoformat()}\n")
+            self.file_handle.write("="*80 + "\n")
 
     def close(self):
         """Close the writer"""
