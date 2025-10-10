@@ -100,12 +100,14 @@ class TxtWriter:
             elif isinstance(item, dict):
                 write_func(item, timestamp_str, radio_id)
 
-        # In QCAT mode, write events AND QCAT messages (RUIM, QMI, CM)
+        # In QCAT mode, write events AND QCAT messages (RUIM, QMI, CM) AND unknown logs
         if self.qcat_mode:
             if 'event' in parsed_result:
                 process_item(parsed_result['event'], self._write_event)
             if 'qcat_msg' in parsed_result:
                 self._write_qcat_message(parsed_result['qcat_msg'], timestamp_str, radio_id)
+            if 'unknown_log' in parsed_result:
+                self._write_unknown_log(parsed_result['unknown_log'], timestamp_str, radio_id)
             return
         
         # Full mode: write everything
@@ -371,6 +373,22 @@ class TxtWriter:
         self.file_handle.write(f"[{timestamp_str}] Radio {radio_id} - CARRIER AGGREGATION\n")
         if 'raw_line' in ca_combo:
             self.file_handle.write(f"  {ca_combo['raw_line']}\n")
+        self.file_handle.write("\n")
+
+    def _write_unknown_log(self, unknown_log, timestamp_str, radio_id):
+        """Write unknown log packet in basic QCAT format"""
+        log_id = unknown_log.get('log_id', 0)
+        length = unknown_log.get('length', 0)
+        body = unknown_log.get('body', b'')
+        
+        self.file_handle.write(f"{timestamp_str}  [00]  0x{log_id:04X}  Unknown Log Packet\n")
+        self.file_handle.write(f"Length = {length}\n")
+        if len(body) > 0:
+            hex_data = ' '.join(f"{b:02X}" for b in body[:64])  # First 64 bytes
+            self.file_handle.write(f"Data = {hex_data}")
+            if len(body) > 64:
+                self.file_handle.write(" ...")
+            self.file_handle.write("\n")
         self.file_handle.write("\n")
 
     def _write_qcat_message(self, msg, timestamp_str, radio_id):

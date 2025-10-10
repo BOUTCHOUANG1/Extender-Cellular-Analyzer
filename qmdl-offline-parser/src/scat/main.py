@@ -192,18 +192,17 @@ def scat_main():
         if args.json_file and args.txt_file:
             # Both JSON and TXT - create composite writer
             from scat.writers.jsonwriter import JsonWriter
-            from scat.writers.txtwriter import TxtWriter
+            from scat.writers.qcat_txtwriter import QcatTxtWriter
             json_writer = JsonWriter(args.json_file)
-            txt_writer = TxtWriter(args.txt_file)
+            txt_writer = QcatTxtWriter(args.txt_file)
             # Set input filename for metadata
             if args.dump and len(args.dump) > 0:
                 json_writer.set_input_filename(args.dump[0])
                 txt_writer.set_input_filename(args.dump[0])
             # If PCAP requested, create PcapWriter
-            if args.preserve_intermediate and args.pcap_file:
+            if args.pcap_file:
                 from scat.writers.pcapwriter import PcapWriter
                 pcap_writer = PcapWriter(args.pcap_file, GSMTAP_PORT, IP_OVER_UDP_PORT)
-                print("Note: Intermediate PCAP file will be created at:", args.pcap_file)
             # Create composite writer
             class CompositeWriter:
                 def __init__(self, json_w, txt_w, pcap_w=None):
@@ -239,21 +238,16 @@ def scat_main():
             if args.dump and len(args.dump) > 0:
                 writer.set_input_filename(args.dump[0])
         elif args.txt_file:
-            # TXT only  
-            from scat.writers.txtwriter import TxtWriter
-            writer = TxtWriter(args.txt_file)
-            # Force legacy example header to improve parity (optional)
-            try:
-                writer.force_example_header = True
-            except Exception:
-                pass
+            # TXT only - use QCAT-style writer
+            from scat.writers.qcat_txtwriter import QcatTxtWriter
+            writer = QcatTxtWriter(args.txt_file)
             if args.dump and len(args.dump) > 0:
                 writer.set_input_filename(args.dump[0])
-        # If only PCAP requested with preserve_intermediate, create PcapWriter
-        if args.preserve_intermediate and args.pcap_file and not (args.json_file and args.txt_file):
-            from scat.writers.pcapwriter import PcapWriter
-            pcap_writer = PcapWriter(args.pcap_file, GSMTAP_PORT, IP_OVER_UDP_PORT)
-            print("Note: Intermediate PCAP file will be created at:", args.pcap_file)
+        # If PCAP requested for single output, set as writer
+        if args.pcap_file and not (args.json_file and args.txt_file):
+            if not pcap_writer:
+                from scat.writers.pcapwriter import PcapWriter
+                pcap_writer = PcapWriter(args.pcap_file, GSMTAP_PORT, IP_OVER_UDP_PORT)
             writer = pcap_writer
     elif args.pcap_file:
         # PCAP output only

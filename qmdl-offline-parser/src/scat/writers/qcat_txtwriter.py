@@ -40,6 +40,7 @@ class QcatTxtWriter:
     
     def write_parsed_data(self, parsed_result, radio_id=0, ts=None):
         """Write parsed data in QCAT format"""
+        # Handle events
         if 'event' in parsed_result:
             events = parsed_result['event']
             if isinstance(events, list):
@@ -47,6 +48,15 @@ class QcatTxtWriter:
                     self._write_event_qcat(event, radio_id, ts)
             elif isinstance(events, dict):
                 self._write_event_qcat(events, radio_id, ts)
+        
+        # Handle stdout data (from GNSS, RF, UMTS NAS, and unknown log parsers)
+        if 'stdout' in parsed_result:
+            stdout_text = parsed_result['stdout']
+            if isinstance(stdout_text, str) and stdout_text.strip():
+                self.file_handle.write(stdout_text)
+                if not stdout_text.endswith('\n'):
+                    self.file_handle.write('\n')
+                self.file_handle.write('\n')  # Add extra newline for QCAT formatting
     
     def _write_event_qcat(self, event, radio_id, ts):
         """Write event in exact QCAT format"""
@@ -101,8 +111,12 @@ class QcatTxtWriter:
         self.file_handle.write(f"\t\tPayload String = {payload_str}\n\n")
     
     def write_stdout_data(self, stdout_text, radio_id=0, ts=None):
-        """Write stdout data - not used in QCAT format"""
-        pass
+        """Write stdout data in QCAT format"""
+        if isinstance(stdout_text, str) and stdout_text.strip():
+            self.file_handle.write(stdout_text)
+            if not stdout_text.endswith('\n'):
+                self.file_handle.write('\n')
+            self.file_handle.write('\n')  # Add extra newline for QCAT formatting
     
     def finalize(self):
         """Finalize output"""

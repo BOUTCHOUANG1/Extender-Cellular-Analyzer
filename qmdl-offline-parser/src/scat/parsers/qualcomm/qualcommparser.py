@@ -42,6 +42,13 @@ from scat.parsers.qualcomm.diaglteeventparser import DiagLteEventParser
 from scat.parsers.qualcomm.diaggsmeventparser import DiagGsmEventParser
 from scat.parsers.qualcomm.diagfallbackeventparser import DiagFallbackEventParser
 from scat.parsers.qualcomm.diagqcatmsgparser import DiagQCATMsgParser
+from scat.parsers.qualcomm.diaggnsslogparser import DiagGnssLogParser
+from scat.parsers.qualcomm.diagrflogparser import DiagRfLogParser
+from scat.parsers.qualcomm.diagumtsnaslogparser import DiagUmtsNasLogParser
+from scat.parsers.qualcomm.diagwcdmaenhancedlogparser import DiagWcdmaEnhancedLogParser
+from scat.parsers.qualcomm.diagwcdmasignalingparser import DiagWcdmaSignalingParser
+from scat.parsers.qualcomm.diagcomprehensivelogparser import DiagComprehensiveLogParser
+from scat.parsers.qualcomm.diagunknownlogparser import DiagUnknownLogParser
 
 bitstring_ver = version.parse(bitstring.__version__)
 if bitstring_ver >= version.parse('4.2.0'):
@@ -116,9 +123,12 @@ class QualcommParser:
         self.diag_log_parsers = [DiagGsmLogParser(self),
             DiagWcdmaLogParser(self), DiagUmtsLogParser(self),
             DiagLteLogParser(self), Diag1xLogParser(self), DiagNrLogParser(self),
-            DiagQCATMsgParser(self)]
+            DiagQCATMsgParser(self), DiagGnssLogParser(self), DiagRfLogParser(self),
+            DiagUmtsNasLogParser(self), DiagWcdmaEnhancedLogParser(self), 
+            DiagWcdmaSignalingParser(self), DiagComprehensiveLogParser(self), DiagUnknownLogParser(self)]
         self.process = { }
         self.no_process = { }
+        self.unknown_log_parser = None
 
         for p in self.diag_log_parsers:
             self.process.update(p.process)
@@ -126,6 +136,9 @@ class QualcommParser:
                 self.no_process.update(p.no_process)
             except AttributeError:
                 pass
+            # Keep reference to unknown log parser
+            if hasattr(p, 'register_unknown_log_id'):
+                self.unknown_log_parser = p
 
         self.diag_event_parsers = [DiagCommonEventParser(self),
             DiagGsmEventParser(self), DiagLteEventParser(self)]
@@ -726,12 +739,16 @@ class QualcommParser:
         if pkt_header.log_id in self.process.keys():
             return self.process[pkt_header.log_id](pkt_header, pkt_body, args)
         elif pkt_header.log_id in self.no_process.keys():
-            #print("Not handling XDM Header 0x%04x (%s)" % (xdm_hdr[1], self.no_process[xdm_hdr[1]]))
             return None
         else:
-            #print("Unhandled XDM Header 0x%04x" % xdm_hdr[1])
-            #util.xxd(pkt)
-            return None
+            # Handle unknown log packets with unknown log parser for QCAT parity
+            if self.unknown_log_parser:
+                self.unknown_log_parser.register_unknown_log_id(pkt_header.log_id)
+                return self.unknown_log_parser.parse_unknown_log_packet(pkt_header, pkt_body, args)
+            else:
+                # Fallback: Output unknown log packets with basic info
+                ts = util.parse_qxdm_ts(pkt_header.timestamp)
+                return {'unknown_log': {'log_id': pkt_header.log_id, 'length': pkt_header.length2, 'body': pkt_body}, 'ts': ts}
 
     event_header = namedtuple('QcDiagEventHeader', 'cmd_code msg_len')
 
